@@ -153,10 +153,11 @@ func (node *Node) HandlePrintSockets() {
 
 func (node *Node) HandleCreateListener(nodeCLI *proto.NodeCLI) {
 	port := nodeCLI.Val16
-	_, err := node.VListen(port)
+	listener, err := node.VListen(port)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	go listener.VAcceptLoop()
 	// fmt.Println(listener)
 	// port := nodeCLI.Val16
 	// if node.socketTable.FindListener(port) != nil {

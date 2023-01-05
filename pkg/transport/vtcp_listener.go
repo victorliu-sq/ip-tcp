@@ -14,6 +14,9 @@ type VTCPListener struct {
 	// any local address can map listener
 	ListenerSegRcvChan chan *proto.Segment
 	ClientInfoChan     chan *ClientInfo
+	// we need these two metadata to create normal connection
+	ST              *SocketTable
+	NodeSegSendChan chan *proto.Segment
 }
 
 type ClientInfo struct {
@@ -24,13 +27,15 @@ type ClientInfo struct {
 	RemotePort uint16
 }
 
-func NewVTCPListener(port, id uint16) *VTCPListener {
+func NewVTCPListener(port, id uint16, st *SocketTable, nodeSegSendChan chan *proto.Segment) *VTCPListener {
 	listener := &VTCPListener{
 		LocalPort:          port,
 		ID:                 id,
 		State:              proto.LISTENER,
 		ClientInfoChan:     make(chan *ClientInfo),
 		ListenerSegRcvChan: make(chan *proto.Segment),
+		ST:                 st,
+		NodeSegSendChan:    nodeSegSendChan,
 	}
 	go listener.ListenerSegHandler()
 	return listener
@@ -53,4 +58,16 @@ func (listener *VTCPListener) ListenerSegHandler() {
 
 func (listener *VTCPListener) SendToClientInfoChan(ci *ClientInfo) {
 	listener.ClientInfoChan <- ci
+}
+
+func (listener *VTCPListener) VAccept() *VTCPConn {
+	ci := <-listener.ClientInfoChan
+	conn := listener.ST.CreateConnSYNRCV(ci.RemoteAddr.String(), ci.LocalAddr.String(), ci.RemotePort, ci.LocalPort, listener.NodeSegSendChan)
+	return conn
+}
+
+func (listener *VTCPListener) VAcceptLoop() {
+	for listener.State == proto.LISTENER {
+		listener.VAccept()
+	}
 }

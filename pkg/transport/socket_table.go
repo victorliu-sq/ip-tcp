@@ -3,10 +3,13 @@ package transport
 import (
 	"fmt"
 	"net"
+	"sync"
 	"tcpip/pkg/proto"
 )
 
 type SocketTable struct {
+	// socketTable needs mutex because multiple listeners can access it to create new normal sockets
+	mu sync.Mutex
 	// which port to assign for a new normal conn
 	connPort uint16
 	// which id to assign for a new listen conn / normal conn
@@ -21,6 +24,7 @@ type SocketTable struct {
 
 func NewSocketTable() *SocketTable {
 	return &SocketTable{
+		mu:                  sync.Mutex{},
 		connPort:            uint16(1024),
 		counter:             uint16(0),
 		id2Conns:            make(map[uint16]*VTCPConn),
@@ -30,50 +34,75 @@ func NewSocketTable() *SocketTable {
 	}
 }
 
-func (table *SocketTable) PrintSockets() {
+func (st *SocketTable) PrintSockets() {
+	st.mu.Lock()
+	defer st.mu.Unlock()
 	fmt.Printf("%-8v %-16v %-12v %-12v %-12v %-12v\n", "socket", "local-addr", "port", "dst-addr", "port", "status")
 	fmt.Println("--------------------------------------------------------------")
 	// Print out Listener Conns
-	for _, listener := range table.id2Listeners {
+	for _, listener := range st.id2Listeners {
 		fmt.Printf("%-8v %-16v %-12v %-12v %-12v %-12v\n", listener.ID, "0.0.0.0", listener.LocalPort, "0.0.0.0", "0", listener.State)
 	}
-	for _, conn := range table.id2Conns {
-		// 0       10.0.0.1        1024            10.0.0.14       80      ESTAB
+	for _, conn := range st.id2Conns {
+		// 0       10.0.0.1        1024            10.0.0.14       80      EstAB
 		fmt.Printf("%-8v %-16v %-12v %-12v %-12v %-12v \n", conn.ID, conn.LocalAddr, conn.LocalPort, conn.RemoteAddr, conn.RemotePort, conn.State)
 	}
 }
 
 // ***********************************************************************************************
 // VTCPListener
-func (ST *SocketTable) CreateListener(port uint16) *VTCPListener {
-	listener := NewVTCPListener(port, ST.counter)
-	ST.id2Listeners[listener.ID] = listener
-	ST.localPort2Listeners[listener.LocalPort] = listener
-	ST.counter++
+func (st *SocketTable) CreateListener(port uint16, nodeSegSendChan chan *proto.Segment) *VTCPListener {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	listener := NewVTCPListener(port, st.counter, st, nodeSegSendChan)
+	st.id2Listeners[listener.ID] = listener
+	st.localPort2Listeners[listener.LocalPort] = listener
+	st.counter++
 	return listener
 }
 
-func (ST *SocketTable) Port2Listener(port uint16) (*VTCPListener, bool) {
-	listener, ok := ST.localPort2Listeners[port]
+func (st *SocketTable) Port2Listener(port uint16) (*VTCPListener, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	listener, ok := st.localPort2Listeners[port]
 	return listener, ok
 }
 
 // ***********************************************************************************************
 // VTCPConn
-func (ST *SocketTable) CreateConn(remoteAddr, localAddr string, remotePort uint16, nodeSegSendChan chan *proto.Segment) *VTCPConn {
-	conn := NewVTCPConn(remotePort, ST.connPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), 0, uint32(ST.counter), proto.SYN_SENT, nodeSegSendChan)
+func (st *SocketTable) CreateConnSYNSENT(remoteAddr, localAddr string, remotePort uint16, nodeSegSendChan chan *proto.Segment) *VTCPConn {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	conn := NewVTCPConn(remotePort, st.connPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_SENT, nodeSegSendChan)
 	tuple := conn.FormTuple()
 	// fmt.Println(tuple)
-	ST.id2Conns[conn.ID] = conn
-	ST.tuple2Conns[tuple] = conn
+	st.id2Conns[conn.ID] = conn
+	st.tuple2Conns[tuple] = conn
 	// conn.NodeSegSendChan = node.segSendChan
 	// conn.CLIChan = node.NodeCLIChan
-	ST.counter++
-	ST.connPort++
+	st.counter++
+	st.connPort++
 	return conn
 }
 
-func (ST *SocketTable) Tuple2Conn(tuple string) (*VTCPConn, bool) {
-	conn, ok := ST.tuple2Conns[tuple]
+func (st *SocketTable) CreateConnSYNRCV(remoteAddr, localAddr string, remotePort, localPort uint16, nodeSegSendChan chan *proto.Segment) *VTCPConn {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	conn := NewVTCPConn(remotePort, localPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_RECV, nodeSegSendChan)
+	tuple := conn.FormTuple()
+	// fmt.Println(tuple)
+	st.id2Conns[conn.ID] = conn
+	st.tuple2Conns[tuple] = conn
+	// conn.NodeSegSendChan = node.segSendChan
+	// conn.CLIChan = node.NodeCLIChan
+	st.counter++
+	st.connPort++
+	return conn
+}
+
+func (st *SocketTable) Tuple2Conn(tuple string) (*VTCPConn, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	conn, ok := st.tuple2Conns[tuple]
 	return conn, ok
 }

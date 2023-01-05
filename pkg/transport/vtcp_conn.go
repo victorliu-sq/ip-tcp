@@ -82,10 +82,8 @@ func (conn *VTCPConn) FormTuple() string {
 
 func (conn *VTCPConn) ConnSegmentHandler() {
 	for {
-		select {
-		case segment := <-conn.ConnSegRcvChan:
-			fmt.Println(segment)
-		}
+		segment := <-conn.ConnSegRcvChan
+		fmt.Println(segment)
 	}
 }
 

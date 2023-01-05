@@ -133,7 +133,7 @@ func (node *Node) VListen(port uint16) (*transport.VTCPListener, error) {
 	if _, ok := node.ST.Port2Listener(port); ok {
 		return nil, fmt.Errorf("Local port exists in Socket Table\n")
 	}
-	listener := node.ST.CreateListener(port)
+	listener := node.ST.CreateListener(port, node.NodeSegSendChan)
 	return listener, nil
 }
 
@@ -144,7 +144,7 @@ func (node *Node) VConnect(remoteAddr string, remotePort uint16) (*transport.VTC
 	if !found {
 		return nil, fmt.Errorf("Dest Addr does not exist\n")
 	}
-	conn := node.ST.CreateConn(remoteAddr, localAddr, remotePort, node.NodeSegSendChan)
+	conn := node.ST.CreateConnSYNSENT(remoteAddr, localAddr, remotePort, node.NodeSegSendChan)
 	// Send SYN Segment
 	seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn, conn.ISS), []byte{})
 	// same thread => send in a goroutine
