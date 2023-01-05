@@ -25,10 +25,10 @@ func (node *Node) ReceiveOpFromChan() {
 			// fmt.Println(nodePktOp)
 			node.HandleNodePktOp(nodePktOp)
 		case segment := <-node.NodeSegSendChan:
-			fmt.Println("Send one Segment")
+			// fmt.Println("Send one Segment")
 			node.HandleSendSegment(segment)
 		case segment := <-node.NodeSegRecvChan:
-			fmt.Println("Receives one Segment")
+			// fmt.Println("Receives one Segment")
 			node.HandleRcvSegment(segment)
 		}
 	}

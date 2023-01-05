@@ -60,7 +60,7 @@ type VTCPConn struct {
 func NewNormalSocket(seqNumber uint32, dstPort, srcPort uint16, dstIP, srcIP net.IP) *VTCPConn {
 	conn := &VTCPConn{
 		mu:         sync.Mutex{},
-		state:      proto.SYN_RECV,
+		state:      proto.SYN_RCVD,
 		seqNum:     rand.Uint32(),
 		ackNum:     seqNumber + 1, // first ackNum can be 1 by giving seqNumber 0 (client --> NConn)
 		LocalPort:  srcPort,

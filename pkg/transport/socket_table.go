@@ -74,12 +74,11 @@ func (st *SocketTable) CreateConnSYNSENT(remoteAddr, localAddr string, remotePor
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	conn := NewVTCPConn(remotePort, st.connPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_SENT, nodeSegSendChan)
+	// Update Socket Table
 	tuple := conn.FormTuple()
 	// fmt.Println(tuple)
 	st.id2Conns[conn.ID] = conn
 	st.tuple2Conns[tuple] = conn
-	// conn.NodeSegSendChan = node.segSendChan
-	// conn.CLIChan = node.NodeCLIChan
 	st.counter++
 	st.connPort++
 	return conn
@@ -88,13 +87,12 @@ func (st *SocketTable) CreateConnSYNSENT(remoteAddr, localAddr string, remotePor
 func (st *SocketTable) CreateConnSYNRCV(remoteAddr, localAddr string, remotePort, localPort uint16, nodeSegSendChan chan *proto.Segment) *VTCPConn {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	conn := NewVTCPConn(remotePort, localPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_RECV, nodeSegSendChan)
+	conn := NewVTCPConn(remotePort, localPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_RCVD, nodeSegSendChan)
+	// Update Socket Table
 	tuple := conn.FormTuple()
 	// fmt.Println(tuple)
 	st.id2Conns[conn.ID] = conn
 	st.tuple2Conns[tuple] = conn
-	// conn.NodeSegSendChan = node.segSendChan
-	// conn.CLIChan = node.NodeCLIChan
 	st.counter++
 	st.connPort++
 	return conn

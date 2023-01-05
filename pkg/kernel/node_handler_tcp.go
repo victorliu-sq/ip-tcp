@@ -146,15 +146,16 @@ func (node *Node) VConnect(remoteAddr string, remotePort uint16) (*transport.VTC
 	}
 	conn := node.ST.CreateConnSYNSENT(remoteAddr, localAddr, remotePort, node.NodeSegSendChan)
 	// Send SYN Segment
-	seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn, conn.ISS), []byte{})
+	go conn.SendSegSYN()
+	// seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn, conn.ISS), []byte{})
 	// same thread => send in a goroutine
-	go node.SendToNodeSegChannel(seg)
+	// go node.SendToNodeSegChannel(seg)
 	return conn, nil
 }
 
-func (node *Node) SendToNodeSegChannel(segment *proto.Segment) {
-	node.NodeSegSendChan <- segment
-}
+// func (node *Node) SendToNodeSegChannel(segment *proto.Segment) {
+// 	node.NodeSegSendChan <- segment
+// }
 
 func (node *Node) HandleSendSegment(segment *proto.Segment) {
 	hdr := segment.TCPhdr
@@ -169,21 +170,22 @@ func (node *Node) HandleSendSegment(segment *proto.Segment) {
 }
 
 func (node *Node) HandleRcvSegment(segment *proto.Segment) {
-	// Try to Send to Listener
+	// 1. Try to Send to Normal Conn
+	tuple := segment.FormTuple()
+	conn, ok := node.ST.Tuple2Conn(tuple)
+	if ok {
+		// fmt.Println("Sent to conn")
+		conn.ConnSegRcvChan <- segment
+		return
+	}
+
+	// 2. Try to Send to Listener of DstPort if No Corresponding Normal Conn Exists
 	port := segment.TCPhdr.DstPort
 	// fmt.Println(port, node.ST.Port2Listener)
 	listener, ok := node.ST.Port2Listener(port)
 	if ok {
-		fmt.Println("Sent to Listener")
+		// fmt.Println("Sent to Listener")
 		listener.ListenerSegRcvChan <- segment
-		return
-	}
-	// Try to Send to Normal Conn
-	tuple := segment.FormTuple()
-	conn, ok := node.ST.Tuple2Conn(tuple)
-	if ok {
-		fmt.Println("Sent to conn")
-		conn.ConnSegRcvChan <- segment
 		return
 	}
 	// socketID := nodeCLI.Val16

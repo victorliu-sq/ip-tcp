@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"fmt"
 	"net"
 	"tcpip/pkg/proto"
 )
@@ -52,7 +51,7 @@ func (listener *VTCPListener) ListenerSegHandler() {
 			LocalAddr:  segment.IPhdr.Dst,
 		}
 		go listener.SendToClientInfoChan(ci)
-		fmt.Println("listener pushes one client info")
+		DPrintf("listener pushes one client info\n")
 	}
 }
 
@@ -63,11 +62,13 @@ func (listener *VTCPListener) SendToClientInfoChan(ci *ClientInfo) {
 func (listener *VTCPListener) VAccept() *VTCPConn {
 	ci := <-listener.ClientInfoChan
 	conn := listener.ST.CreateConnSYNRCV(ci.RemoteAddr.String(), ci.LocalAddr.String(), ci.RemotePort, ci.LocalPort, listener.NodeSegSendChan)
+	go conn.SendSegSYNACK()
 	return conn
 }
 
 func (listener *VTCPListener) VAcceptLoop() {
 	for listener.State == proto.LISTENER {
 		listener.VAccept()
+		DPrintf("[3WHS-Server] One Normal Conn has been created by Listener %v \n", listener.LocalPort)
 	}
 }
