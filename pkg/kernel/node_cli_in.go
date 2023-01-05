@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"tcpip/pkg/myDebug"
 	"tcpip/pkg/proto"
 	"time"
 )
@@ -24,9 +23,9 @@ func (node *Node) ScanClI() {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			line := scanner.Text()
-			if node.blockCLI {
-				continue
-			}
+			// if node.blockCLI {
+			// 	continue
+			// }
 			ws := strings.Split(line, " ")
 			// fmt.Println(ws, len(ws), ws[0])
 			if (len(ws) == 1 || len(ws) == 2) && ws[0] == "li" {
@@ -88,23 +87,13 @@ func (node *Node) ScanClI() {
 				// cli := proto.NewNodeCLI(proto.MESSAGE_SENDPKT, 0, []byte{}, destIP, protoID, msg)
 				cli := proto.NewNodeCLI(proto.MESSAGE_SENDPKT, 0, []byte{}, destIP, 0, protoID, msg, "")
 				node.NodeCLIChan <- cli
-			} else if len(ws) == 2 && ws[0] == "debug" {
-				if ws[1] == "on" {
-					myDebug.SetDebug(true)
-					myDebug.Debugln("debug mode is on")
-				} else {
-					myDebug.SetDebug(false)
-					myDebug.Debugln("debug mode is off, output from debug")
-					fmt.Println("debug mode is off, output from stdout")
-				}
-				fmt.Printf(">")
 			} else if len(ws) == 2 && ws[0] == "a" { //a port
-				_, err := strconv.Atoi(ws[1])
+				portNum, err := strconv.Atoi(ws[1])
 				if err != nil {
 					fmt.Printf("strconv.Atoi: parsing %v: invalid syntax\n> ", ws[1])
 					continue
 				}
-				cli := &proto.NodeCLI{CLIType: proto.CLI_CREATELISTENER, Msg: ws[1]}
+				cli := &proto.NodeCLI{CLIType: proto.CLI_CREATELISTENER, Val16: uint16(portNum)}
 				node.NodeCLIChan <- cli
 			} else if (len(ws) == 1 || len(ws) == 2) && ws[0] == "ls" {
 				if len(ws) == 1 {
@@ -116,80 +105,81 @@ func (node *Node) ScanClI() {
 					node.NodeCLIChan <- cli
 				}
 			} else if len(ws) == 3 && ws[0] == "c" {
-				ipAddr := ws[1]
-				portS := ws[2]
-				port, err := strconv.Atoi(portS)
+				remoteAddr := ws[1]
+				remotePortS := ws[2]
+				remotePort, err := strconv.Atoi(remotePortS)
 				if err != nil {
 					continue
 				}
-				cli := proto.NewNodeCLI(proto.CLI_CREATECONN, 0, []byte{}, ipAddr, uint16(port), 0, "", "")
+				cli := proto.NewNodeCLI(proto.CLI_CREATECONN, 0, []byte{}, remoteAddr, uint16(remotePort), 0, "", "")
 				node.NodeCLIChan <- cli
 			} else if len(ws) == 3 && ws[0] == "s" {
-				id, err := strconv.Atoi(ws[1])
-				if err != nil {
-					continue
-				}
-				// content := []byte(proto.TestString)
-				content := []byte(ws[2])
-				cli := &proto.NodeCLI{CLIType: proto.CLI_SENDSEGMENT, Val16: uint16(id), Bytes: content}
-				node.NodeCLIChan <- cli
+				// id, err := strconv.Atoi(ws[1])
+				// if err != nil {
+				// 	continue
+				// }
+				// // content := []byte(proto.TestString)
+				// content := []byte(ws[2])
+				// cli := &proto.NodeCLI{CLIType: proto.CLI_SENDSEGMENT, Val16: uint16(id), Bytes: content}
+				// node.NodeCLIChan <- cli
 			} else if len(ws) == 4 && ws[0] == "r" {
-				socketId, err := strconv.Atoi(ws[1])
-				if err != nil {
-					continue
-				}
-				numBytes, err := strconv.Atoi(ws[2])
-				if err != nil {
-					continue
-				}
-				isBlock := []byte(ws[3])
-				cli := &proto.NodeCLI{CLIType: proto.CLI_RECVSEGMENT, Bytes: isBlock,
-					Val16: uint16(socketId), Val32: uint32(numBytes)}
-				node.NodeCLIChan <- cli
+				// socketId, err := strconv.Atoi(ws[1])
+				// if err != nil {
+				// 	continue
+				// }
+				// numBytes, err := strconv.Atoi(ws[2])
+				// if err != nil {
+				// 	continue
+				// }
+				// isBlock := []byte(ws[3])
+				// cli := &proto.NodeCLI{CLIType: proto.CLI_RECVSEGMENT, Bytes: isBlock,
+				// 	Val16: uint16(socketId), Val32: uint32(numBytes)}
+				// node.NodeCLIChan <- cli
 			} else if len(ws) == 2 && ws[0] == "cl" {
-				socketId, err := strconv.Atoi(ws[1])
-				if err != nil {
-					return
-				}
-				cli := &proto.NodeCLI{CLIType: proto.CLI_CLOSE, Val16: uint16(socketId)}
-				node.NodeCLIChan <- cli
+				// socketId, err := strconv.Atoi(ws[1])
+				// if err != nil {
+				// 	return
+				// }
+				// cli := &proto.NodeCLI{CLIType: proto.CLI_CLOSE, Val16: uint16(socketId)}
+				// node.NodeCLIChan <- cli
 			} else if len(ws) == 3 && ws[0] == "rf" {
-				path := ws[1]
-				fd, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0x666)
-				if err != nil {
-					fmt.Printf("%v\n", err)
-					continue
-				}
-				port, err := strconv.Atoi(ws[2])
-				if err != nil {
-					fmt.Printf("%v\n", err)
-					continue
-				}
-				ls := node.socketTable.OfferListener(uint16(port))
-				go node.NodeAcceptLoop(ls, true)
-				ls.CLIChan <- &proto.NodeCLI{Fd: fd}
+				// path := ws[1]
+				// fd, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0x666)
+				// if err != nil {
+				// 	fmt.Printf("%v\n", err)
+				// 	continue
+				// }
+				// port, err := strconv.Atoi(ws[2])
+				// if err != nil {
+				// 	fmt.Printf("%v\n", err)
+				// 	continue
+				// }
+				// ls := node.socketTable.OfferListener(uint16(port))
+				// go node.NodeAcceptLoop(ls, true)
+				// ls.CLIChan <- &proto.NodeCLI{Fd: fd}
 			} else if len(ws) == 2 && ws[0] == "cl" {
-				socketId, err := strconv.Atoi(ws[1])
-				if err != nil {
-					continue
-				}
-				node.socketTable.DeleteSocket(uint16(socketId))
-				fmt.Printf("\n> ")
+				// socketId, err := strconv.Atoi(ws[1])
+				// if err != nil {
+				// 	continue
+				// }
+				// node.socketTable.DeleteSocket(uint16(socketId))
+				// fmt.Printf("\n> ")
 			} else if len(ws) == 4 && ws[0] == "sf" {
-				fd, err := os.OpenFile(ws[1], os.O_RDONLY, 0x666)
-				if err != nil {
-					fmt.Printf("%v\n", err)
-					continue
-				}
-				port, err := strconv.Atoi(ws[3])
-				if err != nil {
-					fmt.Printf("%v\n", err)
-					continue
-				}
-				cli := &proto.NodeCLI{DestIP: ws[2], DestPort: uint16(port)}
-				conn := node.HandleCreateConn(cli)
-				conn.Fd = fd
-				go conn.VSBufferWriteFile()
+				// fd, err := os.OpenFile(ws[1], os.O_RDONLY, 0x666)
+				// if err != nil {
+				// 	fmt.Printf("%v\n", err)
+				// 	continue
+				// }
+				// port, err := strconv.Atoi(ws[3])
+				// if err != nil {
+				// 	fmt.Printf("%v\n", err)
+				// 	continue
+				// }
+				// cli := &proto.NodeCLI{DestIP: ws[2], DestPort: uint16(port)}
+				// conn := node.HandleCreateConn(cli)
+				// conn.Fd = fd
+				// go conn.VSBufferWriteFile()
+
 				//pull data from fd
 				//wait for all the data is sent
 			} else {

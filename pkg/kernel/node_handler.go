@@ -5,8 +5,6 @@ import (
 	"log"
 	"os"
 	"tcpip/pkg/proto"
-
-	"golang.org/x/net/ipv4"
 )
 
 // Output the data of CLI
@@ -15,7 +13,7 @@ func (node *Node) ReceiveOpFromChan() {
 	for {
 		select {
 		case nodeCLI := <-node.NodeCLIChan:
-			fmt.Println(nodeCLI)
+			// fmt.Println(nodeCLI)
 			node.HandleNodeCLI(nodeCLI)
 		case nodeBC := <-node.NodeBCChan:
 			// fmt.Println(nodeBC)
@@ -26,8 +24,12 @@ func (node *Node) ReceiveOpFromChan() {
 		case nodePktOp := <-node.NodePktOpChan:
 			// fmt.Println(nodePktOp)
 			node.HandleNodePktOp(nodePktOp)
-		case segment := <-node.segSendChan:
-			node.HandleSendOutSegment(segment)
+		case segment := <-node.NodeSegSendChan:
+			fmt.Println("Send one Segment")
+			node.HandleSendSegment(segment)
+		case segment := <-node.NodeSegRecvChan:
+			fmt.Println("Receives one Segment")
+			node.HandleRcvSegment(segment)
 		}
 	}
 }
@@ -60,7 +62,8 @@ func (node *Node) HandleNodeCLI(nodeCLI *proto.NodeCLI) {
 		node.HandlePrintRoutesToFile(nodeCLI.Filename)
 		fmt.Printf("> ")
 	case proto.CLI_CREATELISTENER:
-		node.handleCreateListener(nodeCLI)
+		// node.handleCreateListener(nodeCLI)
+		node.HandleCreateListener(nodeCLI)
 		fmt.Printf("> ")
 	case proto.CLI_LS:
 		node.HandlePrintSockets()
@@ -69,21 +72,21 @@ func (node *Node) HandleNodeCLI(nodeCLI *proto.NodeCLI) {
 		node.HandleCreateConn(nodeCLI)
 		fmt.Printf("> ")
 	case proto.CLI_SENDSEGMENT:
-		node.handleSendSegment(nodeCLI)
-		fmt.Printf("> ")
+		// node.handleSendSegment(nodeCLI)
+		// fmt.Printf("> ")
 	case proto.CLI_RECVSEGMENT:
-		go node.handleRecvSegment(nodeCLI)
-		fmt.Printf("> ")
+		// go node.handleRecvSegment(nodeCLI)
+		// fmt.Printf("> ")
 	case proto.CLI_BLOCKCLI:
-		node.blockCLI = true
+		// node.blockCLI = true
 	case proto.CLI_UNBLOCKCLI:
-		node.blockCLI = false
-		fmt.Printf("> ")
+		// node.blockCLI = false
+		// fmt.Printf("> ")
 	case proto.CLI_CLOSE:
-		node.handleClose(nodeCLI)
-		fmt.Printf("> ")
+		// node.handleClose(nodeCLI)
+		// fmt.Printf("> ")
 	case proto.CLI_DELETECONN:
-		node.socketTable.DeleteSocket(nodeCLI.Val16)
+		// node.socketTable.DeleteSocket(nodeCLI.Val16)
 	}
 }
 
@@ -145,7 +148,33 @@ func (node *Node) HandleSendPacket(destIP string, protoID int, msg string) {
 }
 
 func (node *Node) HandlePrintSockets() {
-	node.socketTable.PrintSockets()
+	node.ST.PrintSockets()
+}
+
+func (node *Node) HandleCreateListener(nodeCLI *proto.NodeCLI) {
+	port := nodeCLI.Val16
+	_, err := node.VListen(port)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	// fmt.Println(listener)
+	// port := nodeCLI.Val16
+	// if node.socketTable.FindListener(port) != nil {
+	// 	fmt.Printf("Cannot assign requested address\n")
+	// } else {
+	// 	listener := node.socketTable.OfferListener(port)
+	// 	go node.NodeAcceptLoop(listener, false)
+	// }
+}
+
+func (node *Node) HandleCreateConn(nodeCLI *proto.NodeCLI) {
+	_, err := node.VConnect(nodeCLI.DestIP, nodeCLI.DestPort)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	// fmt.Println(conn)
+	// go conn.SynSend()
+	// return conn
 }
 
 // ***********************************************************************************
@@ -161,38 +190,22 @@ func (node *Node) HandleBroadcastRIPResp() {
 }
 
 // ***********************************************************************************
-// Handle Receive Packet
-func (node *Node) HandleReceivePacket(bytes []byte, destAddr string) {
-	// check if  match can any port and the port is still alive
-	// fmt.Println("Receive a packet")
-	if !node.RT.CheckPktValidity(bytes, destAddr) {
-		return
-	}
-	h, err := ipv4.ParseHeader(bytes[:20])
-	if err != nil {
-		log.Fatalln("Parse Header", err)
-	}
-	// HandleRIPResp or HandleTest
-	switch h.Protocol {
-	case proto.PROTOCOL_RIP:
-		b := proto.UnmarshalRIPBody(bytes[20:])
-		if b.Command == 1 {
-			// fmt.Printf("Receive a RIP Req Packet from %v\n", destAddr)
-			node.RT.HandleRIPReq(h.Src.String())
-		} else {
-			// fmt.Printf("Receive a RIP Resp Packet from %v\n", destAddr)
-			node.RT.HandleRIPResp(bytes)
-		}
-	case proto.PROTOCOL_TESTPACKET:
-		// fmt.Printf("Receive a TEST Packet from %v\n", destAddr)
-		node.RT.ForwardTestPkt(bytes)
-	case proto.PROTOCOL_TCP:
-		node.RT.ForwardTCPPkt(h, bytes)
-	}
-}
-
-// ***********************************************************************************
 // Handle Expired Route
 func (node *Node) HandleRouteEx(destIP string) {
 	node.RT.CheckRouteEx(destIP)
 }
+
+// ***********************************************************************************
+// Handle Receving Segment
+// func (node *Node) HandleRcvSegment(segment *proto.Segment) {
+// 	tuple := segment.FormTuple()
+// 	if conn := node.socketTable.FindConn(tuple); conn != nil {
+// 		conn.SegRcvChan <- segment
+// 		return
+// 	}
+// 	dstPort := segment.TCPhdr.DstPort
+// 	listener := node.socketTable.FindListener(dstPort)
+// 	if listener != nil {
+// 		listener.SegRcvChan <- segment
+// 	}
+// }

@@ -37,6 +37,7 @@ const (
 	PROTOCOL_TCP        = 6
 
 	LISTENER  = "LISTENER"
+	SYN_SENT  = "SYN_SENT"
 	SYN_RECV  = "SYN_RECV"
 	ESTABLISH = "ESTABLISH"
 	CLOSEWAIT = "CLOSE_W"
@@ -55,8 +56,9 @@ const (
 
 	// Send Buffer
 	// BUFFER_SIZE = 1 << 16
-	BUFFER_SIZE = uint32(10)
-	MAXCONNUM   = uint16(65535)
+	BUFFER_SIZE        = uint32(10)
+	DEFAULT_DATAOFFSET = 20
+	MAXCONNUM          = uint16(65535)
 
 	RetranInterval = 300 * time.Millisecond
 )

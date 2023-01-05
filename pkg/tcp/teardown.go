@@ -26,7 +26,6 @@ func (conn *VTCPConn) doFINWAIT1() {
 					conn.mu.Lock()
 					conn.seqNum++
 					conn.state = proto.FINWAIT2
-					conn.PrintIncoming(segRev, "Recv ACK -> FIN_WAIT2")
 					go conn.doFINWAIT2()
 					conn.mu.Unlock()
 					return
@@ -36,13 +35,11 @@ func (conn *VTCPConn) doFINWAIT1() {
 				ackMyFIN := segRev.TCPhdr.AckNum == conn.seqNum+1
 				recvAll := conn.ackNum == segRev.TCPhdr.SeqNum
 				if !recvAll {
-					conn.PrintIncoming(segRev, "Recv SIMUL FIN & MISSING DATA")
 					conn.mu.Lock()
 					conn.send2(ACK, "ACK SIMUL FIN BUT MISSING DATA")
 					conn.mu.Unlock()
 				} else {
 					if ackMyFIN {
-						conn.PrintIncoming(segRev, "Recv SIMUL FIN & ACK MY FIN")
 						conn.mu.Lock()
 						conn.ackNum++
 						conn.state = proto.TIMEWAIT
@@ -50,7 +47,6 @@ func (conn *VTCPConn) doFINWAIT1() {
 						go conn.doTimeWait()
 						conn.mu.Unlock()
 					} else {
-						conn.PrintIncoming(segRev, "Recv SIMUL FIN & NOT ACK MY FIN")
 						conn.mu.Lock()
 						conn.seqNum++
 						conn.ackNum++
@@ -75,7 +71,6 @@ func (conn *VTCPConn) doFINWAIT2() {
 			conn.handleACKSeg(segRev)
 		}
 		if finpkt && latestFin {
-			conn.PrintIncoming(segRev, "RECV FIN")
 			conn.mu.Lock()
 			conn.ackNum++
 			conn.send2(ACK, "ACK FIN -> TIME_W")
@@ -84,7 +79,6 @@ func (conn *VTCPConn) doFINWAIT2() {
 			conn.mu.Unlock()
 			return
 		}
-		conn.PrintIncoming(segRev, "maybe error")
 	}
 }
 
@@ -98,7 +92,6 @@ func (conn *VTCPConn) doLastAck() {
 			conn.mu.Unlock()
 			timeout = time.After(proto.RetranInterval)
 		case segRev := <-conn.SegRcvChan:
-			conn.PrintIncoming(segRev, "RECV LAST ACK")
 			isAck := segRev.TCPhdr.Flags == ACK
 			ackMe := segRev.TCPhdr.AckNum-1 == conn.seqNum
 			if isAck && ackMe {
@@ -119,7 +112,6 @@ func (conn *VTCPConn) doClosing() {
 			conn.mu.Unlock()
 			timeout = time.After(proto.RetranInterval)
 		case segRev := <-conn.SegRcvChan:
-			conn.PrintIncoming(segRev, "RECV LAST ACK")
 			isAck := segRev.TCPhdr.Flags == ACK
 			isFin := segRev.TCPhdr.Flags == FIN
 			ackMe := segRev.TCPhdr.AckNum-1 == conn.seqNum

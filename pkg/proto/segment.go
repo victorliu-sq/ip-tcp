@@ -26,9 +26,9 @@ type Segment struct {
 func (segment *Segment) FormTuple() string {
 	remotePort := segment.TCPhdr.SrcPort
 	localPort := segment.TCPhdr.DstPort
-	remotAddr := segment.IPhdr.Src.String()
+	remoteAddr := segment.IPhdr.Src.String()
 	localAddr := segment.IPhdr.Dst.String()
-	return fmt.Sprintf("%v:%v:%v:%v", remotAddr, remotePort, localAddr, localPort)
+	return fmt.Sprintf("%v:%v:%v:%v", remoteAddr, remotePort, localAddr, localPort)
 }
 
 func NewSegment(IPSrc, IPDest string, tcpHdr *header.TCPFields, msg []byte) *Segment {

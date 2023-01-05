@@ -2,7 +2,6 @@ package tcp
 
 import (
 	"fmt"
-	"tcpip/pkg/myDebug"
 	"tcpip/pkg/proto"
 )
 
@@ -39,9 +38,6 @@ func (listener *VTCPListener) VListenerAcceptLoop() error {
 		case <-listener.CancelChan:
 			return nil
 		case segment := <-listener.SegRcvChan:
-			myDebug.Debugln("socket listening on %v receives a request from %v:%v",
-				listener.localPort, segment.IPhdr.Src.String(), segment.TCPhdr.SrcPort)
-			// Notice we need to reverse dst and stc in segment to create a new conn
 			conn := NewNormalSocket(segment.TCPhdr.SeqNum, segment.TCPhdr.SrcPort, segment.TCPhdr.DstPort, segment.IPhdr.Src, segment.IPhdr.Dst)
 			listener.ConnQueue <- conn
 			listener.ConnInQueue++

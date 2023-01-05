@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"tcpip/pkg/myDebug"
 	"tcpip/pkg/proto"
 
 	"golang.org/x/net/ipv4"
@@ -251,7 +250,8 @@ func (rt *RoutingTable) ForwardTCPPkt(h *ipv4.Header, bytes []byte) {
 	// 2. Forwarding
 	// (1) Does this packet belong to me?
 	if _, ok := rt.LocalIPSet[destIP]; ok {
-		rt.SegRevChan <- segment
+		// fmt.Println("Receive one Segment")
+		go rt.SendToNodeSegChannel(segment)
 		return
 	}
 	// (2) Does packet match any route in the forwarding table?
@@ -263,7 +263,6 @@ func (rt *RoutingTable) ForwardTCPPkt(h *ipv4.Header, bytes []byte) {
 				segment := proto.NewPktTCP(srcIP, destIP, msg, ttl-1)
 				bytes := segment.Marshal()
 				li.SendPacket(bytes)
-				myDebug.Debugln("Forward one TCP packet")
 				return
 			}
 		}
@@ -297,17 +296,4 @@ func (rt *RoutingTable) BroadcastRIPRespTU(entity proto.Entry) {
 		bytes := rip.Marshal()
 		li.SendPacket(bytes)
 	}
-}
-
-// ***********************************************************************************
-// Find Src IP addr
-func (rt *RoutingTable) FindSrcIPAddr(destIP string) string {
-	if route, ok := rt.DestIP2Route[destIP]; ok {
-		for _, li := range rt.ID2Interface {
-			if li.IPRemote == route.Next {
-				return li.IPLocal
-			}
-		}
-	}
-	return "no"
 }

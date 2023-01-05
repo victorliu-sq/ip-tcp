@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"tcpip/pkg/myDebug"
 	"tcpip/pkg/proto"
 )
 
@@ -103,7 +102,6 @@ func (buf *RecvBuffer) GetSegStatus(seg *proto.Segment) uint8 {
 	// bug_fix: seq > buf.head+uint32(DEFAULTWINDOWSIZE)
 	// bug_fix if seq < buf.head => unacked
 	if seq >= buf.head+uint32(DEFAULTWINDOWSIZE) {
-		myDebug.Debugln("Out of range : %v, %v", seq, buf.head)
 		return OUTSIDEWINDOW
 	}
 	if seq == buf.una {
