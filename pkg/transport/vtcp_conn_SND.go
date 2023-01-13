@@ -1,6 +1,8 @@
 package transport
 
-import "tcpip/pkg/proto"
+import (
+	"tcpip/pkg/proto"
+)
 
 type SND struct {
 	buffer []byte
@@ -30,4 +32,8 @@ func (snd *SND) PrintSND() {
 
 func (snd *SND) AdvanceUNA(ackNum uint32) {
 	snd.UNA = ackNum
+}
+
+func (snd *SND) CheckACK(seqNum uint32) bool {
+	return snd.UNA > seqNum
 }

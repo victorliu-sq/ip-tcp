@@ -80,14 +80,14 @@ r 1 1000
 
 
 
-
-
 # Retransmit
 
 ref_tcp_node +A 
 
 ```shell
 ./tools/ref_tcp_node ./nets/routeAggregation/tree/A.lnx
+
+./node ./nets/routeAggregation/tree/A.lnx
 
 a 80
 ```

@@ -69,7 +69,6 @@ func NewVTCPConnSYNSENT(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16,
 	// Create SND
 	conn.snd = NewSND(conn.ISN)
 	go conn.ConnStateMachineLoop()
-	// go conn.retransmissionLoop()
 	return conn
 }
 
@@ -100,7 +99,6 @@ func NewVTCPConnSYNRCV(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16, 
 	// Create RCV
 	conn.rcv = NewRCV(seqNumber)
 	go conn.ConnStateMachineLoop()
-	// go conn.retransmissionLoop()
 	return conn
 }
 
