@@ -37,6 +37,7 @@ const (
 	PROTOCOL_TCP        = 6
 
 	LISTENER  = "LISTENER"
+	LISTEN    = "LISTEN"
 	SYN_SENT  = "SYN_SENT"
 	SYN_RCVD  = "SYN_RCVD"
 	ESTABLISH = "ESTABLISH"
@@ -57,6 +58,8 @@ const (
 	// Send Buffer
 	// BUFFER_SIZE = 1 << 16
 	BUFFER_SIZE        = uint32(10)
+	SND_BUFFER_SIZE    = uint32(10)
+	RCV_BUFFER_SIZE    = uint32(5)
 	DEFAULT_DATAOFFSET = 20
 	MAXCONNUM          = uint16(65535)
 

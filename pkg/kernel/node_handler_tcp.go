@@ -146,7 +146,7 @@ func (node *Node) VConnect(remoteAddr string, remotePort uint16) (*transport.VTC
 	}
 	conn := node.ST.CreateConnSYNSENT(remoteAddr, localAddr, remotePort, node.NodeSegSendChan)
 	// Send SYN Segment
-	go conn.SendSegSYN()
+	conn.SendSegSYN()
 	// seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn, conn.ISS), []byte{})
 	// same thread => send in a goroutine
 	// go node.SendToNodeSegChannel(seg)

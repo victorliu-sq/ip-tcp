@@ -3,6 +3,8 @@ package transport
 import (
 	"net"
 	"tcpip/pkg/proto"
+
+	"github.com/google/netstack/tcpip/header"
 )
 
 type VTCPListener struct {
@@ -43,15 +45,18 @@ func NewVTCPListener(port, id uint16, st *SocketTable, nodeSegSendChan chan *pro
 func (listener *VTCPListener) ListenerSegHandler() {
 	for {
 		segment := <-listener.ListenerSegRcvChan
-		ci := &ClientInfo{
-			ISS:        segment.TCPhdr.SeqNum,
-			RemotePort: segment.TCPhdr.SrcPort,
-			LocalPort:  segment.TCPhdr.DstPort,
-			RemoteAddr: segment.IPhdr.Src,
-			LocalAddr:  segment.IPhdr.Dst,
+		// Check SYN Flag
+		if segment.TCPhdr.Flags|header.TCPFlagSyn != 0 {
+			ci := &ClientInfo{
+				ISS:        segment.TCPhdr.SeqNum,
+				RemotePort: segment.TCPhdr.SrcPort,
+				LocalPort:  segment.TCPhdr.DstPort,
+				RemoteAddr: segment.IPhdr.Src,
+				LocalAddr:  segment.IPhdr.Dst,
+			}
+			go listener.SendToClientInfoChan(ci)
+			DPrintf("listener pushes one client info\n")
 		}
-		go listener.SendToClientInfoChan(ci)
-		DPrintf("listener pushes one client info\n")
 	}
 }
 
@@ -61,14 +66,17 @@ func (listener *VTCPListener) SendToClientInfoChan(ci *ClientInfo) {
 
 func (listener *VTCPListener) VAccept() *VTCPConn {
 	ci := <-listener.ClientInfoChan
-	conn := listener.ST.CreateConnSYNRCV(ci.RemoteAddr.String(), ci.LocalAddr.String(), ci.RemotePort, ci.LocalPort, listener.NodeSegSendChan)
-	go conn.SendSegSYNACK()
+	conn := listener.ST.CreateConnSYNRCV(ci.RemoteAddr.String(), ci.LocalAddr.String(), ci.RemotePort, ci.LocalPort, ci.ISS, listener.NodeSegSendChan)
+	// Send a Segment with Flag (SYN | ACK)
+	conn.SendSegSYNACK()
 	return conn
 }
 
 func (listener *VTCPListener) VAcceptLoop() {
+	// State Machine for Listen Socket
 	for listener.State == proto.LISTENER {
+		// Accept one Client Information and Create a new Normal Socket in State SYN_RCVD
 		listener.VAccept()
-		DPrintf("[3WHS-Server] One Normal Conn has been created by Listener %v \n", listener.LocalPort)
+		DPrintf("Listener [%v] has created one normal connection %v \n", listener.State, listener.LocalPort)
 	}
 }

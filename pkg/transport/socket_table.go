@@ -73,7 +73,7 @@ func (st *SocketTable) Port2Listener(port uint16) (*VTCPListener, bool) {
 func (st *SocketTable) CreateConnSYNSENT(remoteAddr, localAddr string, remotePort uint16, nodeSegSendChan chan *proto.Segment) *VTCPConn {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	conn := NewVTCPConn(remotePort, st.connPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_SENT, nodeSegSendChan)
+	conn := NewVTCPConnSYNSENT(remotePort, st.connPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_SENT, nodeSegSendChan)
 	// Update Socket Table
 	tuple := conn.FormTuple()
 	// fmt.Println(tuple)
@@ -84,10 +84,10 @@ func (st *SocketTable) CreateConnSYNSENT(remoteAddr, localAddr string, remotePor
 	return conn
 }
 
-func (st *SocketTable) CreateConnSYNRCV(remoteAddr, localAddr string, remotePort, localPort uint16, nodeSegSendChan chan *proto.Segment) *VTCPConn {
+func (st *SocketTable) CreateConnSYNRCV(remoteAddr, localAddr string, remotePort, localPort uint16, seqNum uint32, nodeSegSendChan chan *proto.Segment) *VTCPConn {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	conn := NewVTCPConn(remotePort, localPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, uint32(st.counter), proto.SYN_RCVD, nodeSegSendChan)
+	conn := NewVTCPConnSYNRCV(remotePort, localPort, net.ParseIP(remoteAddr), net.ParseIP(localAddr), st.counter, seqNum, proto.SYN_RCVD, nodeSegSendChan)
 	// Update Socket Table
 	tuple := conn.FormTuple()
 	// fmt.Println(tuple)
