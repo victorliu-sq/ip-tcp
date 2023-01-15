@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"tcpip/pkg/proto"
 
 	"github.com/google/netstack/tcpip/header"
@@ -9,33 +10,27 @@ import (
 // Normal socket State machine
 func (conn *VTCPConn) ConnStateMachineLoop() {
 	for {
-		select {
-		case segment := <-conn.ConnSegRcvChan:
-			// fmt.Println(segment)
-			DPrintf("Conn [%v] %v Receive one segment \n", conn.State, conn.FormTuple())
-			switch conn.State {
-			case proto.SYN_SENT:
-				conn.HandleSegmentInStateSYNSENT(segment)
-			case proto.SYN_RCVD:
-				conn.HandleSegmentInStateSYNRCVD(segment)
-			case proto.ESTABLISH:
-				conn.HandleSegmentInStateESTABLISH(segment)
-			}
-		case segmentR := <-conn.rtmQueue:
-			conn.retransmit(segmentR)
+		segment := <-conn.ConnSegRcvChan
+		// fmt.Println(segment)
+		DPrintf("Conn [%v] %v Receive one segment with seqNum %v \n", conn.State, conn.FormTuple(), segment.TCPhdr.SeqNum)
+		switch conn.State {
+		case proto.SYN_SENT:
+			conn.HandleSegmentInStateSYNSENT(segment)
+		case proto.SYN_RCVD:
+			conn.HandleSegmentInStateSYNRCVD(segment)
+		case proto.ESTABLISH:
+			conn.HandleSegmentInStateESTABLISH(segment)
 		}
 	}
-}
-
-func (conn *VTCPConn) ToStateEstablished() {
-	conn.State = proto.ESTABLISH
 }
 
 // ***************************************************************************************
 // 3WHS - Handlers
 
 func (conn *VTCPConn) HandleSegmentInStateSYNSENT(segment *proto.Segment) {
-	// Check flag ACK
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	// 1. Check flag ACK
 	if segment.TCPhdr.Flags|header.TCPFlagAck != 0 {
 		// Advance SND.UNA
 		if conn.snd.UNA >= segment.TCPhdr.AckNum {
@@ -44,7 +39,7 @@ func (conn *VTCPConn) HandleSegmentInStateSYNSENT(segment *proto.Segment) {
 		conn.snd.AdvanceUNA(segment.TCPhdr.AckNum)
 		DPrintf("[%v] SND.UNA is advanced to %v\n", conn.State, conn.snd.UNA)
 	}
-	// Check flag SYN
+	// 2. Check flag SYN
 	if segment.TCPhdr.Flags|header.TCPFlagSyn != 0 {
 		// 1. Synchronize SeqNum
 		// Create a RCV for conn and Set RCV.NXT = seqNum + 1
@@ -63,6 +58,8 @@ func (conn *VTCPConn) HandleSegmentInStateSYNSENT(segment *proto.Segment) {
 }
 
 func (conn *VTCPConn) HandleSegmentInStateSYNRCVD(segment *proto.Segment) {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
 	// Check flag ACK
 	if segment.TCPhdr.Flags|header.TCPFlagAck != 0 {
 		// Advance SND.UNA
@@ -82,40 +79,39 @@ func (conn *VTCPConn) HandleSegmentInStateSYNRCVD(segment *proto.Segment) {
 // ***************************************************************************************
 // 3WHS - Helper Functions
 func (conn *VTCPConn) SendSegSYN() {
-	segment := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn, conn.ISN, 0), []byte{})
+	segment := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn, conn.ISN, 0, 0), []byte{})
 	go conn.SendSegR(segment)
 	DPrintf("[%v] Sends one (SYN) segment in conn %v\n", conn.State, conn.FormTuple())
 }
 
 func (conn *VTCPConn) SendSegSYNACK() {
-	segment := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn|header.TCPFlagAck, conn.ISN, conn.rcv.NXT), []byte{})
+	segment := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn|header.TCPFlagAck, conn.ISN, conn.rcv.NXT, conn.rcv.WND), []byte{})
 	go conn.SendSegR(segment)
 	DPrintf("[%v] Sends one (SYN | ACK) segment in conn %v\n", conn.State, conn.FormTuple())
 }
 
 func (conn *VTCPConn) SendSegACK() {
-	segment := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn|header.TCPFlagAck, 0, conn.rcv.NXT), []byte{})
+	segment := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn|header.TCPFlagAck, 0, conn.rcv.NXT, conn.rcv.WND), []byte{})
 	go conn.SendSeg(segment)
 	DPrintf("[%v] Sends one (ACK) segment in conn %v\n", conn.State, conn.FormTuple())
 }
 
-func (conn *VTCPConn) SendSeg(segment *proto.Segment) {
-	conn.NodeSegSendChan <- segment
-}
-
-// send a segment that will be retransmitted
-func (conn *VTCPConn) SendSegR(segment *proto.Segment) {
-	conn.NodeSegSendChan <- segment
-	conn.rtmQueue <- segment
+func (conn *VTCPConn) ToStateEstablished() {
+	conn.State = proto.ESTABLISH
+	go conn.SendSegmentLoop()
 }
 
 // ***************************************************************************************
 // Established
 func (conn *VTCPConn) HandleSegmentInStateESTABLISH(segment *proto.Segment) {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
 	// Check flag SYN -> Retransmission for SND_RCVD
 	if segment.TCPhdr.Flags|header.TCPFlagSyn != 0 {
 		// 1.Send a ACK segment
 		conn.SendSegACK()
+		fmt.Println(segment.TCPhdr.SeqNum)
 		DPrintf("[%v] Sends one (ACK) segment in conn %v\n", conn.State, conn.FormTuple())
 	}
+	// Check SeqNum
 }

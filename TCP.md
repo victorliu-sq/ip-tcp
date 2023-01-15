@@ -116,6 +116,16 @@ c 10.0.0.1 80
 
 ## Full Window
 
+lossy_ip_node + B
+
+```shell
+./tools/lossy_ip_node ./nets/routeAggregation/tree/B.lnx
+
+lossy 0.4
+```
+
+
+
 ref_tcp_node +A 
 
 ```shell
@@ -133,16 +143,6 @@ r 1 105 y
 # receive 1400 bytes
 r 1 1400 y
 # result should be 12345 6789a bcdef ghijk lmnop qrstu vwxyz
-```
-
-
-
-lossy_ip_node + B
-
-```shell
-./tools/lossy_ip_node ./nets/routeAggregation/tree/B.lnx
-
-lossy 0.4
 ```
 
 

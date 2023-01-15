@@ -114,14 +114,14 @@ func (node *Node) ScanClI() {
 				cli := proto.NewNodeCLI(proto.CLI_CREATECONN, 0, []byte{}, remoteAddr, uint16(remotePort), 0, "", "")
 				node.NodeCLIChan <- cli
 			} else if len(ws) == 3 && ws[0] == "s" {
-				// id, err := strconv.Atoi(ws[1])
-				// if err != nil {
-				// 	continue
-				// }
-				// // content := []byte(proto.TestString)
-				// content := []byte(ws[2])
-				// cli := &proto.NodeCLI{CLIType: proto.CLI_SENDSEGMENT, Val16: uint16(id), Bytes: content}
-				// node.NodeCLIChan <- cli
+				id, err := strconv.Atoi(ws[1])
+				if err != nil {
+					continue
+				}
+				// content := []byte(proto.TestString)
+				content := []byte(ws[2])
+				cli := &proto.NodeCLI{CLIType: proto.CLI_SENDSEGMENT, Val16: uint16(id), Bytes: content}
+				node.NodeCLIChan <- cli
 			} else if len(ws) == 4 && ws[0] == "r" {
 				// socketId, err := strconv.Atoi(ws[1])
 				// if err != nil {

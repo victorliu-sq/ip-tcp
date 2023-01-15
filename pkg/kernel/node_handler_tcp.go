@@ -80,18 +80,6 @@ func (node *Node) handleTCPSegment() {
 // 	return conn
 // }
 
-// // *****************************************************************************************
-// // Handle Send Bytes
-// func (node *Node) handleSendSegment(nodeCLI *proto.NodeCLI) {
-// 	socketID := nodeCLI.Val16
-// 	conn := node.socketTable.FindConnByID(socketID)
-// 	if conn == nil {
-// 		fmt.Printf("no VTCPConn with socket ID %v\n", socketID)
-// 		return
-// 	}
-// 	go conn.VSBufferWrite(nodeCLI.Bytes)
-// }
-
 // *****************************************************************************************
 // func (node *Node) HandleSendSegment(seg *proto.Segment) {
 // 	hdr := seg.TCPhdr
@@ -157,7 +145,7 @@ func (node *Node) VConnect(remoteAddr string, remotePort uint16) (*transport.VTC
 // 	node.NodeSegSendChan <- segment
 // }
 
-func (node *Node) HandleSendSegment(segment *proto.Segment) {
+func (node *Node) HandleSegmentToSend(segment *proto.Segment) {
 	hdr := segment.TCPhdr
 	payload := segment.Payload
 	tcpHeaderBytes := make(header.TCP, proto.TcpHeaderLen)
@@ -169,7 +157,7 @@ func (node *Node) HandleSendSegment(segment *proto.Segment) {
 	node.RT.SendTCPPacket(segment.IPhdr.Src.String(), segment.IPhdr.Dst.String(), string(iPayload))
 }
 
-func (node *Node) HandleRcvSegment(segment *proto.Segment) {
+func (node *Node) HandleSegmentReceived(segment *proto.Segment) {
 	// 1. Try to Send to Normal Conn
 	tuple := segment.FormTuple()
 	conn, ok := node.ST.Tuple2Conn(tuple)
@@ -197,4 +185,16 @@ func (node *Node) HandleRcvSegment(segment *proto.Segment) {
 	// isBlock := nodeCLI.Bytes[0] == 'y'
 	// numBytes := nodeCLI.Val32
 	// conn.Retriv(numBytes, isBlock)
+}
+
+// *****************************************************************************************
+// Handle Cmd Send Segment
+func (node *Node) HandleCmdSendSegment(nodeCLI *proto.NodeCLI) {
+	socketID := nodeCLI.Val16
+	conn, ok := node.ST.ID2Conn(socketID)
+	if !ok {
+		fmt.Printf("no VTCPConn with socket ID %v\n", socketID)
+		return
+	}
+	go conn.Write2SNDLoop(nodeCLI.Bytes)
 }

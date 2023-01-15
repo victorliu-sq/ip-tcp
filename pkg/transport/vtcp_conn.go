@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"sync"
 	"tcpip/pkg/proto"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 type VTCPConn struct {
-	// mu    sync.Mutex
+	mu    sync.Mutex
 	State string
 	ID    uint16
 	ISN   uint32
@@ -26,10 +27,9 @@ type VTCPConn struct {
 	ConnSegRcvChan  chan *proto.Segment
 	NodeSegSendChan chan *proto.Segment
 	// Write Condition Variable
-	// wcv sync.Cond
+	wcv sync.Cond
 	// Send Buffer
-	// scv sync.Cond
-	// sb  *SendBuffer // send buffer
+	scv sync.Cond
 	snd *SND
 	// Retransmission
 	rtmQueue      chan *proto.Segment  // retransmission queue
@@ -46,7 +46,7 @@ type VTCPConn struct {
 
 func NewVTCPConnSYNSENT(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16, seqNumber uint32, state string, nodeSegSendChan chan *proto.Segment) *VTCPConn {
 	conn := &VTCPConn{
-		// mu:         sync.Mutex{},
+		mu:         sync.Mutex{},
 		LocalPort:  srcPort,
 		LocalAddr:  srcIP,
 		RemoteAddr: dstIP,
@@ -65,10 +65,13 @@ func NewVTCPConnSYNSENT(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16,
 		recvFIN:       false,
 		Fd:            nil,
 	}
+	conn.wcv = *sync.NewCond(&conn.mu)
+	conn.scv = *sync.NewCond(&conn.mu)
 	// conn.NonEmptyCond = sync.NewCond(&conn.mu)
 	// Create SND
 	conn.snd = NewSND(conn.ISN)
 	go conn.ConnStateMachineLoop()
+	go conn.RetransmissionLoop()
 	return conn
 }
 
@@ -93,12 +96,15 @@ func NewVTCPConnSYNRCV(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16, 
 		recvFIN:       false,
 		Fd:            nil,
 	}
+	conn.wcv = *sync.NewCond(&conn.mu)
+	conn.scv = *sync.NewCond(&conn.mu)
 	// conn.NonEmptyCond = sync.NewCond(&conn.mu)
 	// Create SND
 	conn.snd = NewSND(conn.ISN)
 	// Create RCV
 	conn.rcv = NewRCV(seqNumber)
 	go conn.ConnStateMachineLoop()
+	go conn.RetransmissionLoop()
 	return conn
 }
 
@@ -110,15 +116,15 @@ func (conn *VTCPConn) FormTuple() string {
 	return fmt.Sprintf("%v:%v:%v:%v", remoteAddr, remotePort, localAddr, localPort)
 }
 
-func (conn *VTCPConn) BuildTCPHdr(flags int, seqNum, ackNum uint32) *header.TCPFields {
+func (conn *VTCPConn) BuildTCPHdr(flags int, seqNum, ackNum, win uint32) *header.TCPFields {
 	return &header.TCPFields{
-		SrcPort:    conn.LocalPort,
-		DstPort:    conn.RemotePort,
-		SeqNum:     seqNum,
-		AckNum:     ackNum,
-		DataOffset: proto.DEFAULT_DATAOFFSET,
-		Flags:      uint8(flags),
-		// WindowSize:    conn.windowSize,
+		SrcPort:       conn.LocalPort,
+		DstPort:       conn.RemotePort,
+		SeqNum:        seqNum,
+		AckNum:        ackNum,
+		DataOffset:    proto.DEFAULT_DATAOFFSET,
+		Flags:         uint8(flags),
+		WindowSize:    uint16(win),
 		Checksum:      0,
 		UrgentPointer: 0,
 	}

@@ -26,10 +26,10 @@ func (node *Node) ReceiveOpFromChan() {
 			node.HandleNodePktOp(nodePktOp)
 		case segment := <-node.NodeSegSendChan:
 			// fmt.Println("Send one Segment")
-			node.HandleSendSegment(segment)
+			node.HandleSegmentToSend(segment)
 		case segment := <-node.NodeSegRecvChan:
 			// fmt.Println("Receives one Segment")
-			node.HandleRcvSegment(segment)
+			node.HandleSegmentReceived(segment)
 		}
 	}
 }
@@ -72,8 +72,8 @@ func (node *Node) HandleNodeCLI(nodeCLI *proto.NodeCLI) {
 		node.HandleCreateConn(nodeCLI)
 		fmt.Printf("> ")
 	case proto.CLI_SENDSEGMENT:
-		// node.handleSendSegment(nodeCLI)
-		// fmt.Printf("> ")
+		node.HandleCmdSendSegment(nodeCLI)
+		fmt.Printf("> ")
 	case proto.CLI_RECVSEGMENT:
 		// go node.handleRecvSegment(nodeCLI)
 		// fmt.Printf("> ")

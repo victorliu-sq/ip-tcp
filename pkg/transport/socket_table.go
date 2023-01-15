@@ -104,3 +104,10 @@ func (st *SocketTable) Tuple2Conn(tuple string) (*VTCPConn, bool) {
 	conn, ok := st.tuple2Conns[tuple]
 	return conn, ok
 }
+
+func (st *SocketTable) ID2Conn(id uint16) (*VTCPConn, bool) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	conn, ok := st.id2Conns[id]
+	return conn, ok
+}
