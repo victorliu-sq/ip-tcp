@@ -27,5 +27,5 @@ func (conn *VTCPConn) Retransmit(segment *proto.Segment) {
 	}
 	// if not acked, retransmit it again
 	DPrintf("Conn %v has retransmits unacked segment with seqNum %v, SND.UNA is %v \n", conn.ID, seqNum, conn.snd.UNA)
-	conn.SendSegR(segment)
+	go conn.SendSegR(segment)
 }

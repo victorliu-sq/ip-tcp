@@ -31,16 +31,17 @@ func (conn *VTCPConn) HandleSegmentInStateSYNSENT(segment *proto.Segment) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 	// 1. Check flag ACK
-	if segment.TCPhdr.Flags|header.TCPFlagAck != 0 {
+	if segment.TCPhdr.Flags&header.TCPFlagAck != 0 {
 		// Advance SND.UNA
 		if conn.snd.UNA >= segment.TCPhdr.AckNum {
 			return
 		}
-		conn.snd.AdvanceUNA(segment.TCPhdr.AckNum)
+		conn.snd.SetUNA(segment.TCPhdr.AckNum)
+		conn.snd.SetRCVWND(uint32(segment.TCPhdr.WindowSize))
 		DPrintf("[%v] SND.UNA is advanced to %v\n", conn.State, conn.snd.UNA)
 	}
 	// 2. Check flag SYN
-	if segment.TCPhdr.Flags|header.TCPFlagSyn != 0 {
+	if segment.TCPhdr.Flags&header.TCPFlagSyn != 0 {
 		// 1. Synchronize SeqNum
 		// Create a RCV for conn and Set RCV.NXT = seqNum + 1
 		conn.rcv = NewRCV(segment.TCPhdr.SeqNum)
@@ -61,15 +62,18 @@ func (conn *VTCPConn) HandleSegmentInStateSYNRCVD(segment *proto.Segment) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 	// Check flag ACK
-	if segment.TCPhdr.Flags|header.TCPFlagAck != 0 {
+	if segment.TCPhdr.Flags&header.TCPFlagAck != 0 {
 		// Advance SND.UNA
 		if conn.snd.UNA >= segment.TCPhdr.AckNum {
 			return
 		}
-		conn.snd.AdvanceUNA(segment.TCPhdr.AckNum)
+		conn.snd.SetUNA(segment.TCPhdr.AckNum)
+		conn.snd.SetRCVWND(uint32(segment.TCPhdr.WindowSize))
 		DPrintf("[%v] SND.UNA is advanced to %v\n", conn.State, conn.snd.UNA)
 		// Covert to State Established
 		DPrintf("[%v] conn %v converts to state Established\n", conn.State, conn.ID)
+		// conn.rcv = NewRCV(segment.TCPhdr.SeqNum)
+		// conn.rcv.NXT = segment.TCPhdr.SeqNum + 1
 		conn.ToStateEstablished()
 		conn.rcv.PrintRCV()
 		conn.snd.PrintSND()
@@ -106,12 +110,38 @@ func (conn *VTCPConn) ToStateEstablished() {
 func (conn *VTCPConn) HandleSegmentInStateESTABLISH(segment *proto.Segment) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
+	// 1. Check if SeqNum is acceptable => rcv.NXT <= seqNum < rcv.NXT + rcv.WIN
+	seqNum := segment.TCPhdr.SeqNum
+	ackNum := segment.TCPhdr.AckNum
+	segLen := len(segment.Payload)
+
 	// Check flag SYN -> Retransmission for SND_RCVD
-	if segment.TCPhdr.Flags|header.TCPFlagSyn != 0 {
+	fmt.Println(segment.TCPhdr.Flags)
+	if segment.TCPhdr.Flags&header.TCPFlagSyn != 0 {
 		// 1.Send a ACK segment
 		conn.SendSegACK()
-		fmt.Println(segment.TCPhdr.SeqNum)
-		DPrintf("[%v] Sends one (ACK) segment in conn %v\n", conn.State, conn.FormTuple())
+		DPrintf("[%v] gets one retransmitted SYN %v and sends one (ACK) segment in conn %v\n", conn.State, seqNum, conn.FormTuple())
+		return
 	}
+
 	// Check SeqNum
+	if (conn.rcv.NXT <= seqNum && seqNum < conn.rcv.NXT+conn.rcv.WND) || (conn.rcv.NXT <= seqNum+uint32(segLen)-1 && seqNum+uint32(segLen)-1 < conn.rcv.NXT+conn.rcv.WND) {
+		// go ahead
+	} else {
+		return
+	}
+
+	if segment.TCPhdr.Flags&header.TCPFlagAck != 0 {
+		if len(segment.Payload) != 0 {
+			DPrintf("---------------Receive one Segment with Payload ---------------")
+			DPrintf("seqNum: %-16v\n", seqNum)
+			DPrintf("payload: %-16v\n", string(segment.Payload))
+		} else {
+			DPrintf("---------------Receive one Segment to ACK ---------------")
+			DPrintf("ackNum: %-16v\n", ackNum)
+		}
+	}
+
+	// // writes
+	// bnum := conn.rcv.WriteSegmentToRCV(segment)
 }

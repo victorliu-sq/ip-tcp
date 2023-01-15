@@ -36,7 +36,6 @@ type VTCPConn struct {
 	seq2timestamp map[uint32]time.Time // seq # of 1 segment to expiration time
 	//Recv
 	// NonEmptyCond *sync.Cond
-	// RcvBuf       *RecvBuffer
 	rcv *RCV
 	// ZeroProbe
 	zeroProbe bool
@@ -78,15 +77,13 @@ func NewVTCPConnSYNSENT(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16,
 func NewVTCPConnSYNRCV(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16, seqNumber uint32, state string, nodeSegSendChan chan *proto.Segment) *VTCPConn {
 	conn := &VTCPConn{
 		// mu:         sync.Mutex{},
-		LocalPort:  srcPort,
-		LocalAddr:  srcIP,
-		RemoteAddr: dstIP,
-		RemotePort: dstPort,
-		ID:         id,
-		State:      state,
-		ISN:        GenerateRandomNumber() - 1123456789,
-		// ackNum:     seqNumber + 1, // first ackNum can be 1 by giving seqNumber 0 (client --> NConn)
-		// windowSize: DEFAULTWINDOWSIZE,
+		LocalPort:       srcPort,
+		LocalAddr:       srcIP,
+		RemoteAddr:      dstIP,
+		RemotePort:      dstPort,
+		ID:              id,
+		State:           state,
+		ISN:             GenerateRandomNumber() - 1123456789,
 		NodeSegSendChan: nodeSegSendChan,
 		ConnSegRcvChan:  make(chan *proto.Segment),
 		// Retransmission

@@ -11,8 +11,8 @@ type SND struct {
 	NXT    uint32
 	LBW    uint32
 	// metadata
-	WND   uint32
-	total uint32
+	RCV_WND uint32
+	total   uint32
 }
 
 func NewSND(ISN uint32) *SND {
@@ -23,8 +23,8 @@ func NewSND(ISN uint32) *SND {
 		NXT:    ISN + 1,
 		LBW:    ISN + 1,
 		// initialize total as 1
-		WND:   proto.SND_BUFFER_SIZE,
-		total: 1,
+		RCV_WND: 0,
+		total:   1,
 	}
 	for i := 0; i < int(proto.SND_BUFFER_SIZE); i++ {
 		snd.buffer[i] = byte('*')
@@ -34,18 +34,22 @@ func NewSND(ISN uint32) *SND {
 
 func (snd *SND) PrintSND() {
 	DPrintf("----------------SND----------------\n")
-	DPrintf("%-16v %-16v %-16v %-16v %-16v\n", "ISS", "UNA", "NXT", "LBW", "WIN")
-	DPrintf("%-16v %-16v %-16v %-16v %-16v\n", snd.ISS, snd.UNA, snd.NXT, snd.LBW, snd.WND)
+	DPrintf("%-16v %-16v %-16v %-16v %-16v\n", "ISS", "UNA", "NXT", "LBW", "RCVWIN")
+	DPrintf("%-16v %-16v %-16v %-16v %-16v\n", snd.ISS, snd.UNA, snd.NXT, snd.LBW, snd.RCV_WND)
 	DPrintf("SND buffer: %v\n", string(snd.buffer))
 }
 
-func (snd *SND) AdvanceUNA(ackNum uint32) {
+func (snd *SND) SetUNA(ackNum uint32) {
 	snd.total -= (ackNum - 1 - snd.UNA + 1)
 	snd.UNA = ackNum
 }
 
 func (snd *SND) CheckACK(seqNum uint32) bool {
 	return snd.UNA > seqNum
+}
+
+func (snd *SND) SetRCVWND(win uint32) {
+	snd.RCV_WND = win
 }
 
 // *********************************************************************************************
@@ -80,7 +84,7 @@ func (snd *SND) WriteIntoBuffer(content []byte) uint32 {
 
 // *********************************************************************************************
 // LBW => Write bytes into send buffer
-func (snd *SND) GetZeroProbe() ([]byte, uint32) {
+func (snd *SND) ReadZeroProbeFromSND() ([]byte, uint32) {
 	seqNum := snd.NXT
 	// 1. length == 1
 	len := uint32(1)
@@ -89,16 +93,15 @@ func (snd *SND) GetZeroProbe() ([]byte, uint32) {
 	copy(payload, snd.buffer[snd.getIdx(snd.NXT):snd.getIdx(snd.NXT)+len])
 	// 3. update metadata
 	snd.NXT += len
-	snd.WND -= len
+	snd.RCV_WND -= len
 	return payload, seqNum
 }
 
-func (snd *SND) GetSegment() ([]byte, uint32) {
+func (snd *SND) ReadSegmentFromSND() ([]byte, uint32) {
 	seqNum := snd.NXT
-
 	mtu := uint32(proto.DEFAULT_PACKET_MTU - proto.DEFAULT_IPHDR_LEN - proto.DEFAULT_TCPHDR_LEN)
-	len := getMinLength(mtu, snd.WND, (snd.LBW-1)-snd.NXT+1)
-	// 1. Length of segment = min(mtu, snd.LBW - snd.NXT, snd.WIN)
+	len := getMinLengthSND(mtu, snd.RCV_WND, (snd.LBW-1)-snd.NXT+1)
+	// 1. Length of segment = min(mtu, remainBytes, snd.WIN)
 
 	payload := make([]byte, len)
 	if snd.getIdx(snd.NXT)+len < proto.BUFFER_SIZE {
@@ -114,9 +117,9 @@ func (snd *SND) GetSegment() ([]byte, uint32) {
 		copy(payload[len1:], snd.buffer[:len2])
 	}
 	// 3. Update metadata of send buffer
-	if snd.WND != 0 {
+	if snd.RCV_WND != 0 {
 		snd.NXT += len
-		snd.WND -= len
+		snd.RCV_WND -= len
 	}
 	return payload, seqNum
 }
@@ -128,7 +131,7 @@ func (snd *SND) CanSend() bool {
 }
 
 func (snd *SND) UpdateWin(tcpHeaderWin uint16) {
-	snd.WND = uint32(tcpHeaderWin)
+	snd.RCV_WND = uint32(tcpHeaderWin)
 }
 
 // Check if current send buffer is full
@@ -149,7 +152,7 @@ func (snd *SND) getIdx(seqNum uint32) uint32 {
 	return (seqNum - snd.ISS - 1) % proto.SND_BUFFER_SIZE
 }
 
-func getMinLength(mtu, win, remainBytes uint32) uint32 {
+func getMinLengthSND(mtu, win, remainBytes uint32) uint32 {
 	var min1 uint32
 	var min2 uint32
 
