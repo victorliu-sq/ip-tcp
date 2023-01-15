@@ -9,8 +9,8 @@ type RCV struct {
 	buffer []byte
 	ISS    uint32
 	LBR    uint32
-	NXT    uint32
-	WND    uint32
+	NXT    uint32 // UNA in SND
+	WND    uint32 // RCV_WND in SND
 	total  uint32
 }
 
@@ -36,49 +36,32 @@ func (rcv *RCV) PrintRCV() {
 	DPrintf("RCV buffer: %v\n", fmt.Sprintf("%v", string(rcv.buffer)))
 }
 
-func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) (uint32, bool) {
-	// 1. Get number of bytes to write int buffer
-	bnum := getMinLengthRCV(rcv.getRemainingBytes(), uint32(len(segment.Payload)))
-	isHead := segment.TCPhdr.SeqNum == rcv.NXT
-	// 2. write bytes of Payload into RCV as many as possible
-	content := segment.Payload
-	remainR := rcv.getRemainingBytesRight()
-	// 2.(1) if all bytes can be written into right part, write once
-	if remainR > uint32(len(content)) {
-		copy(rcv.buffer[rcv.getIdx(rcv.NXT):], content)
-	} else {
-		// 2.(2) Otherwise, write twice
-		// <1> write remainR bytes of content into right part of buffer
-		copy(rcv.buffer[rcv.getIdx(rcv.NXT):], content[:remainR])
-		content2 := content[remainR:]
-		// <2> write remainL part of content into left of buffer
-		copy(rcv.buffer, content2)
+func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) bool {
+	payload := segment.Payload
+	seqNum := segment.TCPhdr.SeqNum
+	isHeadAcked := false
+	ackedNum := 0
+	for i, ch := range payload {
+		curSeqNum := seqNum + uint32(i)
+		if curSeqNum == rcv.NXT {
+			isHeadAcked = true
+		}
+		if rcv.NXT <= curSeqNum && curSeqNum < rcv.NXT+proto.RCV_BUFFER_SIZE {
+			idx := rcv.getIdx(seqNum + uint32(i))
+			rcv.buffer[idx] = ch
+			ackedNum += 1
+		}
 	}
-	// 3. update total and LBW
-	if isHead {
-		rcv.NXT += bnum
-		rcv.total += bnum
+	if isHeadAcked {
+		rcv.NXT += uint32(ackedNum)
+		rcv.total += uint32(ackedNum)
+		rcv.WND -= uint32(ackedNum)
 	}
-	return bnum, isHead
+	return isHeadAcked
 }
 
 // *********************************************************************************************
 // Helper function
-func getMinLengthRCV(remainBytes, segmentLen uint32) uint32 {
-	if remainBytes < segmentLen {
-		return remainBytes
-	}
-	return segmentLen
-}
-
 func (rcv *RCV) getIdx(seqNum uint32) uint32 {
 	return (seqNum - rcv.ISS - 1) % proto.RCV_BUFFER_SIZE
-}
-
-func (rcv *RCV) getRemainingBytes() uint32 {
-	return proto.RCV_BUFFER_SIZE - rcv.total
-}
-
-func (rcv *RCV) getRemainingBytesRight() uint32 {
-	return proto.RCV_BUFFER_SIZE - 1 - rcv.getIdx(rcv.NXT) + 1
 }

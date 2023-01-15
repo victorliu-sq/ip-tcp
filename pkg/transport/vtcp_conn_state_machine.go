@@ -136,12 +136,15 @@ func (conn *VTCPConn) HandleSegmentInStateESTABLISH(segment *proto.Segment) {
 			DPrintf("---------------Receive one Segment with Payload ---------------")
 			DPrintf("seqNum: %-16v\n", seqNum)
 			DPrintf("payload: %-16v\n", string(segment.Payload))
+			// write bytes into buffer
+			isHeadAcked := conn.rcv.WriteSegmentToRCV(segment)
+			conn.rcv.PrintRCV()
+			if isHeadAcked {
+				go conn.SendSegACK()
+			}
 		} else {
 			DPrintf("---------------Receive one Segment to ACK ---------------")
 			DPrintf("ackNum: %-16v\n", ackNum)
 		}
 	}
-
-	// // writes
-	// bnum := conn.rcv.WriteSegmentToRCV(segment)
 }
