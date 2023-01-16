@@ -88,6 +88,19 @@ func (conn *VTCPConn) HandleSegmentInStateFINWAIT1(segment *proto.Segment) {
 	seqNum := segment.TCPhdr.SeqNum
 	ackNum := segment.TCPhdr.AckNum
 	segLen := len(segment.Payload)
+
+	// Check flag FIN => TIMEWAIT directly
+	if segment.TCPhdr.Flags&header.TCPFlagFin != 0 {
+		// 1.Send a 4WC_ACK segment
+		conn.rcv.UpdateNXT_FIN()
+		conn.ToStateTIMEWAIT()
+		// update timeout2MSL, wait 2 MSL and try to close
+		go conn.WaitAndCLose()
+		conn.SendSeg4WC_ACK()
+		DPrintf("[%v] gets one FIN %v and sends one (ACK) segment in conn %v\n", conn.State, seqNum, conn.FormTuple())
+		return
+	}
+
 	if segment.TCPhdr.Flags&header.TCPFlagAck != 0 {
 		if len(segment.Payload) != 0 {
 			// 1. FIMWAIT1 can still receive segments
