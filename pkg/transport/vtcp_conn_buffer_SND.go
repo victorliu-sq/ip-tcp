@@ -110,21 +110,12 @@ func (snd *SND) ReadZeroProbeFromSND() ([]byte, uint32) {
 func (snd *SND) ReadSegmentFromSND() ([]byte, uint32) {
 	seqNum := snd.NXT
 	mtu := uint32(proto.DEFAULT_PACKET_MTU - proto.DEFAULT_IPHDR_LEN - proto.DEFAULT_TCPHDR_LEN)
-	len := getMinLengthSND(mtu, snd.RCV_WND, (snd.LBW-1)-snd.NXT+1)
 	// 1. Length of segment = min(mtu, remainBytes, snd.WIN)
-
+	len := getMinLengthSND(mtu, snd.RCV_WND, (snd.LBW-1)-snd.NXT+1)
+	// 2. Copy bytes as many as possible
 	payload := make([]byte, len)
-	if snd.getIdx(snd.NXT)+len < proto.BUFFER_SIZE {
-		// 2. (1) If enough bytes on the right of SND, send them all
-		// copy all, notice that there must be <, <= will cause range problem like [9:0]
-		copy(payload, snd.buffer[snd.getIdx(snd.NXT):snd.getIdx(snd.NXT+len)])
-	} else {
-		// 2. (2) Otherwise, send bytes on the right and left
-		// copy right and left
-		len1 := proto.BUFFER_SIZE - snd.getIdx(snd.NXT)
-		copy(payload, snd.buffer[snd.getIdx(snd.NXT):proto.BUFFER_SIZE])
-		len2 := len - len1
-		copy(payload[len1:], snd.buffer[:len2])
+	for i := uint32(0); i < len; i++ {
+		payload[i] = snd.buffer[snd.getIdx(snd.NXT+i)]
 	}
 	// 3. Update metadata of send buffer
 	if snd.RCV_WND != 0 {

@@ -77,14 +77,9 @@ func (node *Node) HandleNodeCLI(nodeCLI *proto.NodeCLI) {
 	case proto.CLI_RECVSEGMENT:
 		go node.HandleCmdRcvSegment(nodeCLI)
 		fmt.Printf("> ")
-	case proto.CLI_BLOCKCLI:
-		// node.blockCLI = true
-	case proto.CLI_UNBLOCKCLI:
-		// node.blockCLI = false
-		// fmt.Printf("> ")
 	case proto.CLI_CLOSE:
-		// node.handleClose(nodeCLI)
-		// fmt.Printf("> ")
+		node.HandleCmdClose(nodeCLI)
+		fmt.Printf("> ")
 	case proto.CLI_DELETECONN:
 		// node.socketTable.DeleteSocket(nodeCLI.Val16)
 	}
@@ -195,18 +190,3 @@ func (node *Node) HandleBroadcastRIPResp() {
 func (node *Node) HandleRouteEx(destIP string) {
 	node.RT.CheckRouteEx(destIP)
 }
-
-// ***********************************************************************************
-// Handle Receving Segment
-// func (node *Node) HandleRcvSegment(segment *proto.Segment) {
-// 	tuple := segment.FormTuple()
-// 	if conn := node.socketTable.FindConn(tuple); conn != nil {
-// 		conn.SegRcvChan <- segment
-// 		return
-// 	}
-// 	dstPort := segment.TCPhdr.DstPort
-// 	listener := node.socketTable.FindListener(dstPort)
-// 	if listener != nil {
-// 		listener.SegRcvChan <- segment
-// 	}
-// }

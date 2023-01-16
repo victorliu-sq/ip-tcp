@@ -136,12 +136,13 @@ func (node *Node) ScanClI() {
 					Val16: uint16(socketId), Val32: uint32(numBytes)}
 				node.NodeCLIChan <- cli
 			} else if len(ws) == 2 && ws[0] == "cl" {
-				// socketId, err := strconv.Atoi(ws[1])
-				// if err != nil {
-				// 	return
-				// }
-				// cli := &proto.NodeCLI{CLIType: proto.CLI_CLOSE, Val16: uint16(socketId)}
-				// node.NodeCLIChan <- cli
+				socketId, err := strconv.Atoi(ws[1])
+				if err != nil {
+					return
+				}
+				cli := &proto.NodeCLI{CLIType: proto.CLI_CLOSE, Val16: uint16(socketId)}
+				node.NodeCLIChan <- cli
+				fmt.Printf("\n> ")
 			} else if len(ws) == 3 && ws[0] == "rf" {
 				// path := ws[1]
 				// fd, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0x666)
@@ -157,13 +158,6 @@ func (node *Node) ScanClI() {
 				// ls := node.socketTable.OfferListener(uint16(port))
 				// go node.NodeAcceptLoop(ls, true)
 				// ls.CLIChan <- &proto.NodeCLI{Fd: fd}
-			} else if len(ws) == 2 && ws[0] == "cl" {
-				// socketId, err := strconv.Atoi(ws[1])
-				// if err != nil {
-				// 	continue
-				// }
-				// node.socketTable.DeleteSocket(uint16(socketId))
-				// fmt.Printf("\n> ")
 			} else if len(ws) == 4 && ws[0] == "sf" {
 				// fd, err := os.OpenFile(ws[1], os.O_RDONLY, 0x666)
 				// if err != nil {

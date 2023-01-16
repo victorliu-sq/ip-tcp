@@ -9,7 +9,7 @@ import (
 // retransmission
 func (conn *VTCPConn) RetransmissionLoop() {
 	for {
-		segmentR := <-conn.rtmQueue
+		segmentR := <-conn.retsmChan
 		go conn.Retransmit(segmentR)
 	}
 }
@@ -26,6 +26,6 @@ func (conn *VTCPConn) Retransmit(segment *proto.Segment) {
 		return
 	}
 	// if not acked, retransmit it again
-	DPrintf("Conn %v has retransmits unacked segment with seqNum %v, SND.UNA is %v \n", conn.ID, seqNum, conn.snd.UNA)
+	DPrintf("Conn %v retransmits an unacked segment with seqNum %v, SND.UNA is %v \n", conn.ID, seqNum, conn.snd.UNA)
 	go conn.SendSegR(segment)
 }

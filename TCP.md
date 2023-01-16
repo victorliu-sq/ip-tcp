@@ -291,7 +291,43 @@ sd 1 read
 
 
 
-## SendFile, HashNum
+# Close
+
+```shell
+# A
+./node ./nets/routeAggregation/tree/A.lnx
+
+a 80
+
+# C
+./node ./nets/routeAggregation/tree/C.lnx
+
+c 10.0.0.1 80
+
+# A
+cl 1
+
+# ------------------------------------------------------------------------
+# Test for bidirectional
+# A
+r 1 105 y
+
+# C 
+s 0 123456789abcdefghijklmnopqrstuvwxyz123456789abcdefghijklmnopqrstuvwxyz123456789abcdefghijklmnopqrstuvwxyz
+
+# ------------------------------------------------------------------------
+
+# C
+cl 0
+
+
+```
+
+
+
+
+
+# SendFile, HashNum
 
 ```shell
 # create a file of 1MB

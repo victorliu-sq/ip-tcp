@@ -7,19 +7,19 @@ import (
 
 type RCV struct {
 	buffer []byte
-	ISS    uint32
+	IRS    uint32
 	LBR    uint32
 	NXT    uint32 // UNA in SND
 	WND    uint32 // RCV_WND in SND
 	total  uint32
 }
 
-func NewRCV(ClientISS uint32) *RCV {
+func NewRCV(ISS uint32) *RCV {
 	rcv := &RCV{
 		buffer: make([]byte, proto.RCV_BUFFER_SIZE),
-		ISS:    ClientISS,
-		NXT:    ClientISS + 1,
-		LBR:    ClientISS + 1,
+		IRS:    ISS,
+		NXT:    ISS + 1,
+		LBR:    ISS + 1,
 		WND:    proto.RCV_BUFFER_SIZE,
 		total:  0,
 	}
@@ -31,11 +31,13 @@ func NewRCV(ClientISS uint32) *RCV {
 
 func (rcv *RCV) PrintRCV() {
 	DPrintf("----------------RCV----------------\n")
-	DPrintf("%-16v %-16v %-16v %-16v\n", "ISS", "NXT", "LBR", "WIN")
-	DPrintf("%-16v %-16v %-16v %-16v\n", rcv.ISS, rcv.NXT, rcv.LBR, rcv.WND)
+	DPrintf("%-16v %-16v %-16v %-16v\n", "IRS", "NXT", "LBR", "WIN")
+	DPrintf("%-16v %-16v %-16v %-16v\n", rcv.IRS, rcv.NXT, rcv.LBR, rcv.WND)
 	DPrintf("RCV buffer: %v\n", fmt.Sprintf("%v", string(rcv.buffer)))
 }
 
+// *********************************************************************************************
+// NXT
 func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) bool {
 	payload := segment.Payload
 	seqNum := segment.TCPhdr.SeqNum
@@ -46,7 +48,7 @@ func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) bool {
 		if curSeqNum == rcv.NXT {
 			isHeadAcked = true
 		}
-		if rcv.NXT <= curSeqNum && curSeqNum < rcv.NXT+proto.RCV_BUFFER_SIZE {
+		if rcv.NXT <= curSeqNum && curSeqNum < rcv.NXT+rcv.WND {
 			idx := rcv.getIdx(seqNum + uint32(i))
 			rcv.buffer[idx] = ch
 			ackedNum += 1
@@ -60,6 +62,8 @@ func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) bool {
 	return isHeadAcked
 }
 
+// *********************************************************************************************
+// LBR
 func (rcv *RCV) ReadFromBuffer(total uint32) ([]byte, uint32) {
 	bytes := []byte{}
 	bnum := uint32(0)
@@ -79,9 +83,15 @@ func (rcv *RCV) ReadFromBuffer(total uint32) ([]byte, uint32) {
 }
 
 // *********************************************************************************************
+// FIN => update rcv.NXT by 1 byte
+func (rcv *RCV) UpdateNXT_FIN() {
+	rcv.NXT += 1
+}
+
+// *********************************************************************************************
 // Helper function
 func (rcv *RCV) getIdx(seqNum uint32) uint32 {
-	return (seqNum - rcv.ISS - 1) % proto.RCV_BUFFER_SIZE
+	return (seqNum - rcv.IRS - 1) % proto.RCV_BUFFER_SIZE
 }
 
 func (rcv *RCV) IsEmpty() bool {
