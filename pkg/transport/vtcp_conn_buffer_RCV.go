@@ -60,8 +60,30 @@ func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) bool {
 	return isHeadAcked
 }
 
+func (rcv *RCV) ReadFromBuffer(total uint32) ([]byte, uint32) {
+	bytes := []byte{}
+	bnum := uint32(0)
+	for bnum < total && rcv.LBR < rcv.NXT {
+		// Reset buffer
+		idx := rcv.getIdx(rcv.LBR)
+		bytes = append(bytes, rcv.buffer[idx])
+		rcv.buffer[idx] = byte('*')
+
+		// Update metadata
+		bnum += 1
+		rcv.LBR += 1
+		rcv.WND += 1
+		rcv.total -= 1
+	}
+	return bytes, bnum
+}
+
 // *********************************************************************************************
 // Helper function
 func (rcv *RCV) getIdx(seqNum uint32) uint32 {
 	return (seqNum - rcv.ISS - 1) % proto.RCV_BUFFER_SIZE
+}
+
+func (rcv *RCV) IsEmpty() bool {
+	return rcv.total == 0
 }

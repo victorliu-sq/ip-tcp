@@ -123,18 +123,18 @@ func (node *Node) ScanClI() {
 				cli := &proto.NodeCLI{CLIType: proto.CLI_SENDSEGMENT, Val16: uint16(id), Bytes: content}
 				node.NodeCLIChan <- cli
 			} else if len(ws) == 4 && ws[0] == "r" {
-				// socketId, err := strconv.Atoi(ws[1])
-				// if err != nil {
-				// 	continue
-				// }
-				// numBytes, err := strconv.Atoi(ws[2])
-				// if err != nil {
-				// 	continue
-				// }
-				// isBlock := []byte(ws[3])
-				// cli := &proto.NodeCLI{CLIType: proto.CLI_RECVSEGMENT, Bytes: isBlock,
-				// 	Val16: uint16(socketId), Val32: uint32(numBytes)}
-				// node.NodeCLIChan <- cli
+				socketId, err := strconv.Atoi(ws[1])
+				if err != nil {
+					continue
+				}
+				numBytes, err := strconv.Atoi(ws[2])
+				if err != nil {
+					continue
+				}
+				isBlock := []byte(ws[3])
+				cli := &proto.NodeCLI{CLIType: proto.CLI_RECVSEGMENT, Bytes: isBlock,
+					Val16: uint16(socketId), Val32: uint32(numBytes)}
+				node.NodeCLIChan <- cli
 			} else if len(ws) == 2 && ws[0] == "cl" {
 				// socketId, err := strconv.Atoi(ws[1])
 				// if err != nil {

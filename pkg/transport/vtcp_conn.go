@@ -34,9 +34,9 @@ type VTCPConn struct {
 	// Retransmission
 	rtmQueue      chan *proto.Segment  // retransmission queue
 	seq2timestamp map[uint32]time.Time // seq # of 1 segment to expiration time
-	//Recv
-	// NonEmptyCond *sync.Cond
-	rcv *RCV
+	// RCV Buffer
+	rcv   *RCV
+	rcond sync.Cond
 	// ZeroProbe
 	zeroProbe bool
 	recvFIN   bool
@@ -66,6 +66,7 @@ func NewVTCPConnSYNSENT(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16,
 	}
 	conn.wcv = *sync.NewCond(&conn.mu)
 	conn.scv = *sync.NewCond(&conn.mu)
+	conn.rcond = *sync.NewCond(&conn.mu)
 	// conn.NonEmptyCond = sync.NewCond(&conn.mu)
 	// Create SND
 	conn.snd = NewSND(conn.ISN)
@@ -95,6 +96,7 @@ func NewVTCPConnSYNRCV(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16, 
 	}
 	conn.wcv = *sync.NewCond(&conn.mu)
 	conn.scv = *sync.NewCond(&conn.mu)
+	conn.rcond = *sync.NewCond(&conn.mu)
 	// conn.NonEmptyCond = sync.NewCond(&conn.mu)
 	// Create SND
 	conn.snd = NewSND(conn.ISN)

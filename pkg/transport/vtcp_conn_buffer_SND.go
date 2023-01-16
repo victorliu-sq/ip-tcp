@@ -40,8 +40,18 @@ func (snd *SND) PrintSND() {
 }
 
 func (snd *SND) SetUNA(ackNum uint32) {
-	snd.total -= (ackNum - 1 - snd.UNA + 1)
-	snd.UNA = ackNum
+	if ackNum == snd.ISS+1 {
+		snd.UNA = ackNum
+		snd.total = 0
+		return
+	}
+	for snd.UNA < ackNum {
+		idx := snd.getIdx(snd.UNA)
+		snd.buffer[idx] = byte('*')
+		// update metadata
+		snd.UNA += 1
+		snd.total -= 1
+	}
 }
 
 func (snd *SND) CheckACK(seqNum uint32) bool {

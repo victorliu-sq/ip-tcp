@@ -68,7 +68,7 @@ func (listener *VTCPListener) VAccept() *VTCPConn {
 	ci := <-listener.ClientInfoChan
 	conn := listener.ST.CreateConnSYNRCV(ci.RemoteAddr.String(), ci.LocalAddr.String(), ci.RemotePort, ci.LocalPort, ci.ISS, listener.NodeSegSendChan)
 	// Send a Segment with Flag (SYN | ACK)
-	conn.SendSegSYNACK()
+	conn.SendSeg3WHS_SYNACK()
 	return conn
 }
 

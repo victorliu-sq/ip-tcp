@@ -134,7 +134,7 @@ func (node *Node) VConnect(remoteAddr string, remotePort uint16) (*transport.VTC
 	}
 	conn := node.ST.CreateConnSYNSENT(remoteAddr, localAddr, remotePort, node.NodeSegSendChan)
 	// Send SYN Segment
-	conn.SendSegSYN()
+	conn.SendSeg3WHS_SYN()
 	// seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagSyn, conn.ISS), []byte{})
 	// same thread => send in a goroutine
 	// go node.SendToNodeSegChannel(seg)
@@ -196,7 +196,21 @@ func (node *Node) HandleCmdSendSegment(nodeCLI *proto.NodeCLI) {
 		fmt.Printf("no VTCPConn with socket ID %v\n", socketID)
 		return
 	}
-	conn.WriteToSNDLoop(nodeCLI.Bytes)
+	go conn.WriteBytesToSNDLoop(nodeCLI.Bytes)
 	// conn.Write2SNDLoop
 	// go conn.WriteIntoBuffer(nodeCLI.Bytes)
+}
+
+// *****************************************************************************************
+// Handle Cmd Rcv Segment
+func (node *Node) HandleCmdRcvSegment(nodeCLI *proto.NodeCLI) {
+	socketID := nodeCLI.Val16
+	conn, ok := node.ST.ID2Conn(socketID)
+	if !ok {
+		fmt.Printf("no VTCPConn with socket ID %v\n", socketID)
+		return
+	}
+	// isBlock := nodeCLI.Bytes[0] == 'y'
+	numBytes := nodeCLI.Val32
+	conn.ReadBytesFromRCVLoop(numBytes)
 }

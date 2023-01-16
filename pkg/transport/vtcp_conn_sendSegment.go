@@ -16,14 +16,14 @@ func (conn *VTCPConn) SendSegmentLoop() {
 			var seqNum uint32
 			if conn.snd.RCV_WND == 0 {
 				payload, seqNum = conn.snd.ReadZeroProbeFromSND()
-				seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagAck, seqNum, conn.snd.UNA, 0), payload)
+				seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagAck, seqNum, conn.rcv.NXT, conn.rcv.WND), payload)
 				go conn.SendSegR(seg)
 				// conn.send(payload, seqNum)
 				conn.zeroProbe = true
 			} else {
 				// Get one segment, send it out and add it to retransmission queue
 				payload, seqNum = conn.snd.ReadSegmentFromSND()
-				seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagAck, seqNum, conn.snd.UNA, 0), payload)
+				seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagAck, seqNum, conn.rcv.NXT, conn.rcv.WND), payload)
 				go conn.SendSegR(seg)
 				// conn.send(payload, seqNum)
 			}
