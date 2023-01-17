@@ -72,7 +72,7 @@ func (node *Node) HandleCmdSendSegment(nodeCLI *proto.NodeCLI) {
 		fmt.Printf("no VTCPConn with socket ID %v\n", socketID)
 		return
 	}
-	go conn.WriteBytesToSNDLoop(nodeCLI.Bytes)
+	go conn.Writer(nodeCLI.Bytes)
 }
 
 // *****************************************************************************************
@@ -85,7 +85,7 @@ func (node *Node) HandleCmdRcvSegment(nodeCLI *proto.NodeCLI) {
 		return
 	}
 	numBytes := nodeCLI.Val32
-	conn.ReadBytesFromRCVLoop(numBytes)
+	conn.Reader(numBytes)
 }
 
 // *****************************************************************************************

@@ -1,21 +1,14 @@
 package transport
 
 import (
-	"fmt"
 	"tcpip/pkg/proto"
 
 	"github.com/google/netstack/tcpip/header"
 )
 
 // ***************************************************************************************
-func (conn *VTCPConn) SendSegACK() {
-	seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagAck, conn.snd.NXT, conn.rcv.NXT, conn.rcv.WND), []byte{})
-	go conn.SendSeg(seg)
-	// DPrintf("[%v] Sends one (SYN) segment in conn %v\n", conn.State, conn.FormTuple())
-}
-
-// ***************************************************************************************
-// Established - Write Segment 2 Receive
+// Established
+// Receiver
 // Segment Handler => Write Segment 2 Receive + Send ACK / Set UNA by ACK
 func (conn *VTCPConn) HandleSegmentInStateESTABLISH(segment *proto.Segment) {
 	conn.mu.Lock()
@@ -43,9 +36,9 @@ func (conn *VTCPConn) HandleSegmentInStateESTABLISH(segment *proto.Segment) {
 		return
 	}
 
+	// Server receives one segment
 	if segment.TCPhdr.Flags&header.TCPFlagAck != 0 {
 		if len(segment.Payload) != 0 {
-			// Server receives one segment
 			// Check SeqNum, write segment into buffer, signal reader to read from buffer if header is acked
 			if (conn.rcv.NXT <= seqNum && seqNum < conn.rcv.NXT+conn.rcv.WND) || (conn.rcv.NXT <= seqNum+uint32(segLen)-1 && seqNum+uint32(segLen)-1 < conn.rcv.NXT+conn.rcv.WND) {
 				// go ahead
@@ -79,39 +72,10 @@ func (conn *VTCPConn) HandleSegmentInStateESTABLISH(segment *proto.Segment) {
 	}
 }
 
-// Reader to Read bytes from RCV
-func (conn *VTCPConn) ReadBytesFromRCVLoop(total uint32) []byte {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	res := []byte{}
-	for total > 0 {
-		if !conn.rcv.IsEmpty() {
-			bytes, bnum := conn.rcv.ReadFromBuffer(total)
-			total -= bnum
-			res = append(res, bytes...)
-			fmt.Println("************************************************")
-			fmt.Println(string(res))
-			fmt.Println("************************************************")
-			conn.rcv.PrintRCV()
-		} else {
-			fmt.Println("Read Sleep")
-			conn.rcond.Wait()
-			fmt.Println("Read Wake up")
-		}
-	}
-	DPrintf("*******************Finish Sending*******************")
-	if string(res) == proto.TestString {
-		println("************************************************")
-		fmt.Println("Woww!!!!!!!!")
-		println("************************************************")
-	}
-	return res
-}
-
 // ***************************************************************************************
-// Established - Segment Send
+// Established - Sender
 // Send Segment from bytes in SND Buffer
-func (conn *VTCPConn) SendSegmentLoop() {
+func (conn *VTCPConn) SegmentSender() {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 	for conn.State == proto.ESTABLISH || conn.State == proto.CLOSEWAIT {
@@ -140,6 +104,13 @@ func (conn *VTCPConn) SendSegmentLoop() {
 	}
 }
 
+// ***************************************************************************************
+func (conn *VTCPConn) SendSegACK() {
+	seg := proto.NewSegment(conn.LocalAddr.String(), conn.RemoteAddr.String(), conn.BuildTCPHdr(header.TCPFlagAck, conn.snd.NXT, conn.rcv.NXT, conn.rcv.WND), []byte{})
+	go conn.SendSeg(seg)
+	// DPrintf("[%v] Sends one (SYN) segment in conn %v\n", conn.State, conn.FormTuple())
+}
+
 func (conn *VTCPConn) SendSeg(segment *proto.Segment) {
 	conn.NodeSegSendChan <- segment
 }
@@ -148,25 +119,4 @@ func (conn *VTCPConn) SendSeg(segment *proto.Segment) {
 func (conn *VTCPConn) SendSegR(segment *proto.Segment) {
 	conn.NodeSegSendChan <- segment
 	conn.retsmChan <- segment
-}
-
-// Writer to Write bytes into SND
-func (conn *VTCPConn) WriteBytesToSNDLoop(content []byte) {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	total := uint32(len(content))
-	for total > 0 && (conn.State == proto.ESTABLISH || conn.State == proto.CLOSEWAIT) {
-		if !conn.snd.IsFull() {
-			bnum := conn.snd.WriteIntoBuffer(content)
-			total -= bnum
-			content = content[bnum:]
-			conn.scond.Signal()
-			// Print current snd
-			conn.snd.PrintSND()
-		} else {
-			fmt.Println("Write Sleep")
-			conn.wcond.Wait()
-			fmt.Println("Write Wake up")
-		}
-	}
 }

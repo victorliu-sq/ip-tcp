@@ -10,7 +10,7 @@ import (
 // 3WHS - Convert to State
 func (conn *VTCPConn) ToStateEstablished() {
 	conn.State = proto.ESTABLISH
-	go conn.SendSegmentLoop()
+	go conn.SegmentSender()
 }
 
 // ***************************************************************************************

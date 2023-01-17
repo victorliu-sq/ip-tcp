@@ -144,38 +144,34 @@ func (node *Node) ScanClI() {
 				node.NodeCLIChan <- cli
 				fmt.Printf("\n> ")
 			} else if len(ws) == 3 && ws[0] == "rf" {
-				// path := ws[1]
-				// fd, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0x666)
-				// if err != nil {
-				// 	fmt.Printf("%v\n", err)
-				// 	continue
-				// }
-				// port, err := strconv.Atoi(ws[2])
-				// if err != nil {
-				// 	fmt.Printf("%v\n", err)
-				// 	continue
-				// }
-				// ls := node.socketTable.OfferListener(uint16(port))
-				// go node.NodeAcceptLoop(ls, true)
-				// ls.CLIChan <- &proto.NodeCLI{Fd: fd}
+				// rf + filename + port
+				path := ws[1]
+				fd, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0x666)
+				if err != nil {
+					fmt.Printf("%v\n", err)
+					continue
+				}
+				port, err := strconv.Atoi(ws[2])
+				if err != nil {
+					fmt.Printf("%v\n", err)
+					continue
+				}
+				cli := &proto.NodeCLI{CLIType: proto.CLI_RCVFILE, Val16: uint16(port), Fd: fd}
+				node.NodeCLIChan <- cli
 			} else if len(ws) == 4 && ws[0] == "sf" {
-				// fd, err := os.OpenFile(ws[1], os.O_RDONLY, 0x666)
-				// if err != nil {
-				// 	fmt.Printf("%v\n", err)
-				// 	continue
-				// }
-				// port, err := strconv.Atoi(ws[3])
-				// if err != nil {
-				// 	fmt.Printf("%v\n", err)
-				// 	continue
-				// }
-				// cli := &proto.NodeCLI{DestIP: ws[2], DestPort: uint16(port)}
-				// conn := node.HandleCreateConn(cli)
-				// conn.Fd = fd
-				// go conn.VSBufferWriteFile()
-
-				//pull data from fd
-				//wait for all the data is sent
+				// sf + filename + ip + port
+				fd, err := os.OpenFile(ws[1], os.O_RDONLY, 0x666)
+				if err != nil {
+					fmt.Printf("%v\n", err)
+					continue
+				}
+				port, err := strconv.Atoi(ws[3])
+				if err != nil {
+					fmt.Printf("%v\n", err)
+					continue
+				}
+				cli := &proto.NodeCLI{CLIType: proto.CLI_SNDFILE, DestIP: ws[2], DestPort: uint16(port), Fd: fd}
+				node.NodeCLIChan <- cli
 			} else {
 				fmt.Printf("Invalid command\n> ")
 			}

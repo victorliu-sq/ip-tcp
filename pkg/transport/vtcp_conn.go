@@ -3,7 +3,6 @@ package transport
 import (
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"sync"
 	"tcpip/pkg/proto"
@@ -36,7 +35,6 @@ type VTCPConn struct {
 	rcond sync.Cond
 	// ZeroProbe
 	zeroProbe bool
-	Fd        *os.File
 	// 2MSLTimeout
 	timeout2MSL time.Time
 }
@@ -57,7 +55,6 @@ func NewVTCPConnSYNSENT(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16,
 		retsmChan:     make(chan *proto.Segment),
 		seq2timestamp: make(map[uint32]time.Time),
 		zeroProbe:     false,
-		Fd:            nil,
 	}
 	conn.wcond = *sync.NewCond(&conn.mu)
 	conn.scond = *sync.NewCond(&conn.mu)
@@ -85,7 +82,6 @@ func NewVTCPConnSYNRCV(dstPort, srcPort uint16, dstIP, srcIP net.IP, id uint16, 
 		retsmChan:     make(chan *proto.Segment),
 		seq2timestamp: make(map[uint32]time.Time),
 		zeroProbe:     false,
-		Fd:            nil,
 	}
 	conn.wcond = *sync.NewCond(&conn.mu)
 	conn.scond = *sync.NewCond(&conn.mu)
@@ -105,7 +101,7 @@ func (conn *VTCPConn) ConnStateMachineLoop() {
 	for {
 		segment := <-conn.ConnSegRcvChan
 		// fmt.Println(segment)
-		DPrintf("Conn [%v] Receive one segment with seqNum %v \n", conn.State, segment.TCPhdr.SeqNum)
+		// DPrintf("Conn [%v] Receive one segment with seqNum %v \n", conn.State, segment.TCPhdr.SeqNum)
 		switch conn.State {
 		case proto.SYN_SENT:
 			conn.HandleSegmentInStateSYNSENT(segment)
@@ -147,4 +143,10 @@ func (conn *VTCPConn) BuildTCPHdr(flags int, seqNum, ackNum, win uint32) *header
 		Checksum:      0,
 		UrgentPointer: 0,
 	}
+}
+
+func (conn *VTCPConn) GetState() string {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	return conn.State
 }

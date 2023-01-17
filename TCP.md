@@ -329,11 +329,51 @@ cl 0
 
 # SendFile, HashNum
 
+My Example
+
+```shell
+rm 1400fileR
+
+# A
+./node ./nets/routeAggregation/tree/A.lnx
+rf 1400fileR 90
+
+# C
+./node ./nets/routeAggregation/tree/C.lnx
+sf 1400file 10.0.0.1 90
+
+# check bytes of 2 files
+ls -la 1400file
+ls -la 1400fileR
+
+# check hash of 2 files
+sha1sum 1400file 1400fileR
+```
+
+
+
+
+
+Other Example
+
 ```shell
 # create a file of 1MB
 dd if=/dev/urandom bs=1M count=1 | base64 -w 0 > sendfile
 # create a file of 100MB
 dd if=/dev/urandom bs=100M count=1 | base64 -w 0 > sendfile
+
+rm rcvfile
+rm 1400fileR
+
+# A
+./node ./nets/routeAggregation/tree/A.lnx
+rf rcvfile 90
+rf 1400fileR 90
+
+# C
+./node ./nets/routeAggregation/tree/C.lnx
+sf sendfile 10.0.0.1 90
+sf 1400file 10.0.0.1 90
 
 # check bytes of 2 files
 ls -la sendfile 
@@ -344,38 +384,3 @@ sha1sum 1400file.txt 1400fileR
 sha1sum sendfile rcvfile
 ```
 
-
-
-We use a window size of fourteen hundrend and a buffer of 65536
-
-
-
-At first, I will run A and C with our own nodes
-
-I do not implement the close functions after 3 retries, so I make adjust the lossy rate to a little bit higher.
-
-C will try to receive the file and A is going send this file
-
-Now C has received the finish segment, and Let's check the hashnum
-
-
-
-And our nodes can also interact with reference nodes perfectly
-
-I will run A with our own node and run C with the reference node
-
-As we can see C has received the file and we can check the hashnum
-
-
-
-Now I will ask the reference node send the file and our node will be the receiver
-
-But I need to adjust the lossy rate to lower before doing this
-
-Because the reference node will stop sending after some retries
-
-OK, now A has gotten the segment of FINISH, let's check the hashnum
-
-
-
-Since John is more familiar with the infrastructure than me, I will hand this problem to him.

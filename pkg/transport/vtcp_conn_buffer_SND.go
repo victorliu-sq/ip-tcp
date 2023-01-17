@@ -54,10 +54,6 @@ func (snd *SND) SetUNA(ackNum uint32) {
 	}
 }
 
-func (snd *SND) CheckACK(seqNum uint32) bool {
-	return snd.UNA > seqNum
-}
-
 func (snd *SND) SetRCVWND(win uint32) {
 	snd.RCV_WND = win
 }

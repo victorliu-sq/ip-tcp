@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"fmt"
 	"tcpip/pkg/proto"
 )
 
@@ -33,7 +32,7 @@ func (rcv *RCV) PrintRCV() {
 	DPrintf("----------------RCV----------------\n")
 	DPrintf("%-16v %-16v %-16v %-16v\n", "IRS", "NXT", "LBR", "WIN")
 	DPrintf("%-16v %-16v %-16v %-16v\n", rcv.IRS, rcv.NXT, rcv.LBR, rcv.WND)
-	DPrintf("RCV buffer: %v\n", fmt.Sprintf("%v", string(rcv.buffer)))
+	DPrintf("RCV buffer: %v\n", string(rcv.buffer))
 }
 
 // *********************************************************************************************
@@ -41,20 +40,39 @@ func (rcv *RCV) PrintRCV() {
 func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) bool {
 	payload := segment.Payload
 	seqNum := segment.TCPhdr.SeqNum
-	isHeadAcked := false
-	ackedNum := 0
-	for i, ch := range payload {
-		curSeqNum := seqNum + uint32(i)
-		if curSeqNum == rcv.NXT {
-			isHeadAcked = true
-		}
-		if rcv.NXT <= curSeqNum && curSeqNum < rcv.NXT+rcv.WND {
-			idx := rcv.getIdx(seqNum + uint32(i))
-			rcv.buffer[idx] = ch
+
+	// initialize start, end and isHeadAcked
+	// start = max(seqNum, rcv.NXT)
+	// end := min(seqNum + len(payload), rcv.NXT+rcv.WND)
+	var start, end uint32
+	if seqNum > rcv.NXT {
+		start = seqNum
+	} else {
+		start = rcv.NXT
+	}
+	if seqNum+uint32(len(payload)) < rcv.NXT+rcv.WND {
+		end = seqNum + uint32(len(payload))
+	} else {
+		end = rcv.NXT + rcv.WND
+	}
+	// iterate bytes from start to end
+	for curSeqNum := start; curSeqNum < end; curSeqNum++ {
+		ch := payload[curSeqNum-seqNum]
+		idx := rcv.getIdx(curSeqNum)
+		rcv.buffer[idx] = ch
+	}
+	isHeadAcked := start == rcv.NXT
+	ackedNum := (end - 1) - start + 1
+	if isHeadAcked {
+		// if head is acked, Cleanup Early Arrivals
+		for curSeqNum := end; curSeqNum < rcv.NXT+rcv.WND; curSeqNum++ {
+			idx := rcv.getIdx(curSeqNum)
+			if rcv.buffer[idx] == byte('*') {
+				break
+			}
 			ackedNum += 1
 		}
-	}
-	if isHeadAcked {
+		// DPrintf("ACKED Num: %v\n", ackedNum)
 		rcv.NXT += uint32(ackedNum)
 		rcv.total += uint32(ackedNum)
 		rcv.WND -= uint32(ackedNum)
@@ -67,6 +85,7 @@ func (rcv *RCV) WriteSegmentToRCV(segment *proto.Segment) bool {
 func (rcv *RCV) ReadFromBuffer(total uint32) ([]byte, uint32) {
 	bytes := []byte{}
 	bnum := uint32(0)
+	// fmt.Println("LBR", rcv.LBR, "NXT", rcv.NXT)
 	for bnum < total && rcv.LBR < rcv.NXT {
 		// Reset buffer
 		idx := rcv.getIdx(rcv.LBR)

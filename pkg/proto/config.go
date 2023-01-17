@@ -18,10 +18,10 @@ const (
 	CLI_CREATECONN     = uint8(10)
 	CLI_SENDSEGMENT    = uint8(11)
 	CLI_RECVSEGMENT    = uint8(12)
-	CLI_BLOCKCLI       = uint8(13)
-	CLI_UNBLOCKCLI     = uint8(14)
-	CLI_CLOSE          = uint8(15)
-	CLI_DELETECONN     = uint8(16)
+	CLI_CLOSE          = uint8(13)
+	CLI_DELETECONN     = uint8(14)
+	CLI_SNDFILE        = uint8(15)
+	CLI_RCVFILE        = uint8(16)
 	// network pass Packet to link
 	MESSAGE_BCRIPREQ  = uint8(20)
 	MESSAGE_BCRIPRESP = uint8(21)
@@ -52,20 +52,22 @@ const (
 	FIRST_PORT = 0
 
 	// DEFAULTPACKETMTU = 1400
-	DEFAULT_PACKET_MTU = 20 + 20 + 3
+	DEFAULT_PACKET_MTU = 20 + 20 + 7
+	// DEFAULT_PACKET_MTU = 20 + 20 + 1360
 	DEFAULT_IPHDR_LEN  = 20
 	DEFAULT_TCPHDR_LEN = 20
 
 	// Send Buffer
 	// BUFFER_SIZE = 1 << 16
-	BUFFER_SIZE = uint32(10)
+	// BUFFER_SIZE = uint32(10)
 	// Size of Send Buffer and Rcvd Buffer
-	SND_BUFFER_SIZE    = uint32(10)
-	RCV_BUFFER_SIZE    = uint32(5)
+	SND_BUFFER_SIZE = uint32(100)
+	RCV_BUFFER_SIZE = uint32(50)
+	// SND_BUFFER_SIZE    = uint32(65535)
+	// RCV_BUFFER_SIZE    = uint32(65535)
 	DEFAULT_DATAOFFSET = 20
-	MAXCONNUM          = uint16(65535)
 
-	RetranInterval = 300 * time.Millisecond
+	RetranInterval = 10 * time.Millisecond
 	MSL            = 3 * time.Second
 )
 

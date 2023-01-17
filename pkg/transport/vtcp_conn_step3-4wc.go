@@ -20,13 +20,19 @@ func (conn *VTCPConn) Close() {
 }
 
 func (conn *VTCPConn) WaitAndCLose() {
+	conn.UpdateTimeout()
+	time.Sleep(2 * proto.MSL)
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
-	conn.timeout2MSL = time.Now().Add(2 * proto.MSL)
-	time.Sleep(2 * proto.MSL)
 	if time.Now().After(conn.timeout2MSL) {
 		conn.ToStateCLOSED()
 	}
+}
+
+func (conn *VTCPConn) UpdateTimeout() {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	conn.timeout2MSL = time.Now().Add(2 * proto.MSL)
 }
 
 // ***************************************************************************************
@@ -57,6 +63,8 @@ func (conn *VTCPConn) ToStateCLOSEWAIT() {
 	conn.State = proto.CLOSEWAIT
 	// Send Segment ACK
 	conn.SendSeg4WC_ACK()
+	// Signal
+	conn.rcond.Signal()
 }
 
 func (conn *VTCPConn) ToStateLASTACK() {
@@ -174,7 +182,6 @@ func (conn *VTCPConn) HandleSegmentInStateTIMEWAIT(segment *proto.Segment) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
 	seqNum := segment.TCPhdr.SeqNum
-
 	// Check flag FIN
 	if segment.TCPhdr.Flags&header.TCPFlagFin != 0 {
 		// 1.Send a 4WC_ACK segment
@@ -188,26 +195,6 @@ func (conn *VTCPConn) HandleSegmentInStateTIMEWAIT(segment *proto.Segment) {
 }
 
 // ---------------------------- Server -------------------------------------
-func (conn *VTCPConn) HandleSegmentInStateLASTACK(segment *proto.Segment) {
-	conn.mu.Lock()
-	defer conn.mu.Unlock()
-	// seqNum := segment.TCPhdr.SeqNum
-	ackNum := segment.TCPhdr.AckNum
-	// segLen := len(segment.Payload)
-
-	if segment.TCPhdr.Flags&header.TCPFlagAck != 0 {
-		{
-			// Client receives one segment to ack FIN
-			if conn.snd.UNA >= ackNum {
-				return
-			}
-			DPrintf("---------------Receive one Segment to ACK ---------------")
-			conn.snd.SetUNA(ackNum)
-			conn.ToStateCLOSED()
-		}
-	}
-}
-
 func (conn *VTCPConn) HandleSegmentInStateCLOSEWAIT(segment *proto.Segment) {
 	conn.mu.Lock()
 	defer conn.mu.Unlock()
@@ -231,6 +218,25 @@ func (conn *VTCPConn) HandleSegmentInStateCLOSEWAIT(segment *proto.Segment) {
 				conn.scond.Signal()
 			}
 			conn.snd.PrintSND()
+		}
+	}
+}
+
+func (conn *VTCPConn) HandleSegmentInStateLASTACK(segment *proto.Segment) {
+	conn.mu.Lock()
+	defer conn.mu.Unlock()
+	// seqNum := segment.TCPhdr.SeqNum
+	ackNum := segment.TCPhdr.AckNum
+	// segLen := len(segment.Payload)
+	if segment.TCPhdr.Flags&header.TCPFlagAck != 0 {
+		{
+			// Client receives one segment to ack FIN
+			if conn.snd.UNA >= ackNum {
+				return
+			}
+			DPrintf("---------------Receive one Segment to ACK ---------------")
+			conn.snd.SetUNA(ackNum)
+			conn.ToStateCLOSED()
 		}
 	}
 }

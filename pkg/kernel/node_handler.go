@@ -80,8 +80,12 @@ func (node *Node) HandleNodeCLI(nodeCLI *proto.NodeCLI) {
 	case proto.CLI_CLOSE:
 		node.HandleCmdClose(nodeCLI)
 		fmt.Printf("> ")
-	case proto.CLI_DELETECONN:
-		// node.socketTable.DeleteSocket(nodeCLI.Val16)
+	case proto.CLI_RCVFILE:
+		go node.HandleCmdRcvFile(nodeCLI)
+		fmt.Printf("> ")
+	case proto.CLI_SNDFILE:
+		go node.HandleCmdSendFile(nodeCLI)
+		fmt.Printf("> ")
 	}
 }
 
@@ -153,14 +157,6 @@ func (node *Node) HandleCreateListener(nodeCLI *proto.NodeCLI) {
 		log.Fatalln(err)
 	}
 	go listener.VAcceptLoop()
-	// fmt.Println(listener)
-	// port := nodeCLI.Val16
-	// if node.socketTable.FindListener(port) != nil {
-	// 	fmt.Printf("Cannot assign requested address\n")
-	// } else {
-	// 	listener := node.socketTable.OfferListener(port)
-	// 	go node.NodeAcceptLoop(listener, false)
-	// }
 }
 
 func (node *Node) HandleCreateConn(nodeCLI *proto.NodeCLI) {
@@ -168,9 +164,6 @@ func (node *Node) HandleCreateConn(nodeCLI *proto.NodeCLI) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	// fmt.Println(conn)
-	// go conn.SynSend()
-	// return conn
 }
 
 // ***********************************************************************************
